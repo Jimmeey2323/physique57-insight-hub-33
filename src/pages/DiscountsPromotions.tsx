@@ -1,8 +1,7 @@
-
 import React, { useEffect, useMemo, useState } from 'react';
 import { RefinedLoader } from '@/components/ui/RefinedLoader';
 import { useDiscountsData } from '@/hooks/useDiscountsData';
-import { useLoading } from '@/contexts/LoadingContext';
+import { useGlobalLoading } from '@/hooks/useGlobalLoading';
 import { DiscountFilterSection } from '@/components/dashboard/DiscountFilterSection';
 import { DiscountLocationSelector } from '@/components/dashboard/DiscountLocationSelector';
 import { DiscountMetricCards } from '@/components/dashboard/DiscountMetricCards';
@@ -32,7 +31,7 @@ interface DiscountFilters {
 
 const DiscountsPromotions: React.FC = () => {
   const navigate = useNavigate();
-  const { setLoading } = useLoading();
+  const { setLoading } = useGlobalLoading();
   const { data, loading, error } = useDiscountsData();
   const [showStickyNotes, setShowStickyNotes] = useState(false);
   const [isFiltersCollapsed, setIsFiltersCollapsed] = useState(false);
@@ -164,7 +163,7 @@ const DiscountsPromotions: React.FC = () => {
   };
 
   if (loading) {
-    return <RefinedLoader message="Loading discount and promotional analysis..." />;
+    return <RefinedLoader subtitle="Loading discount and promotional analysis..." />;
   }
 
   if (error) {
@@ -321,20 +320,19 @@ const DiscountsPromotions: React.FC = () => {
           <DiscountDataTable
             data={filteredData}
             filters={filters}
-            onDrillDown={handleDrillDown}
           />
         </main>
       </div>
       
       {showStickyNotes && (
-        <EnhancedStickyNotes className="fixed inset-0 pointer-events-none z-40" />
+        <EnhancedStickyNotes />
       )}
       
       <DrillDownModal
         isOpen={drillDownModal.isOpen}
         onClose={() => setDrillDownModal({ ...drillDownModal, isOpen: false })}
         data={drillDownModal.data}
-        type={drillDownModal.type}
+        type="product"
       />
     </div>
   );

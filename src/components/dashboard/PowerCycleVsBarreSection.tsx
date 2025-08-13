@@ -5,21 +5,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { PowerCycleVsBarreEnhancedFilterSection } from './PowerCycleVsBarreEnhancedFilterSection';
 import { PowerCycleVsBarreComparison } from './PowerCycleVsBarreComparison';
-import { PowerCycleVsBarreMetrics } from './PowerCycleVsBarreMetrics';
 import { PowerCycleVsBarreCharts } from './PowerCycleVsBarreCharts';
 import { PowerCycleVsBarreTopBottomLists } from './PowerCycleVsBarreTopBottomLists';
-import { PowerCycleVsBarreDataTable } from './PowerCycleVsBarreDataTable';
 import { DrillDownModal } from './DrillDownModal';
 import { SourceDataModal } from '@/components/ui/SourceDataModal';
 import { useFilteredSessionsData } from '@/hooks/useFilteredSessionsData';
 import { useSessionsData } from '@/hooks/useSessionsData';
 import { RefinedLoader } from '@/components/ui/RefinedLoader';
-import { useLoading } from '@/contexts/LoadingContext';
+import { useGlobalLoading } from '@/hooks/useGlobalLoading';
 import { TrendingUp, BarChart3, Activity, Users, Eye } from 'lucide-react';
 import { getPreviousMonthDateRange } from '@/utils/dateUtils';
 
 export const PowerCycleVsBarreSection: React.FC = () => {
-  const { setLoading } = useLoading();
+  const { setLoading } = useGlobalLoading();
   const { data: rawData, loading, error } = useSessionsData();
   const filteredData = useFilteredSessionsData(rawData);
   
@@ -41,12 +39,27 @@ export const PowerCycleVsBarreSection: React.FC = () => {
     });
   }, [filteredData]);
 
+  // Separate PowerCycle and Barre data
+  const powerCycleData = React.useMemo(() => {
+    return powerCycleVsBarreData.filter(session => {
+      const className = session.cleanedClass?.toLowerCase() || '';
+      return className.includes('powercycle');
+    });
+  }, [powerCycleVsBarreData]);
+
+  const barreData = React.useMemo(() => {
+    return powerCycleVsBarreData.filter(session => {
+      const className = session.cleanedClass?.toLowerCase() || '';
+      return className.includes('barre');
+    });
+  }, [powerCycleVsBarreData]);
+
   const handleItemClick = (item: any) => {
     setDrillDownData(item);
   };
 
   if (loading) {
-    return <RefinedLoader message="Loading PowerCycle vs Barre analysis..." />;
+    return <RefinedLoader subtitle="Loading PowerCycle vs Barre analysis..." />;
   }
 
   if (error) {
@@ -63,9 +76,6 @@ export const PowerCycleVsBarreSection: React.FC = () => {
     <div className="space-y-8">
       {/* Enhanced Filter Section */}
       <PowerCycleVsBarreEnhancedFilterSection data={rawData || []} />
-
-      {/* Metrics Section */}
-      <PowerCycleVsBarreMetrics data={powerCycleVsBarreData} />
 
       {/* Main Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -97,24 +107,30 @@ export const PowerCycleVsBarreSection: React.FC = () => {
         </Card>
 
         <TabsContent value="overview" className="space-y-8">
-          <PowerCycleVsBarreComparison data={powerCycleVsBarreData} />
-          <PowerCycleVsBarreCharts data={powerCycleVsBarreData} />
+          <PowerCycleVsBarreComparison powerCycleData={powerCycleData} barreData={barreData} />
+          <PowerCycleVsBarreCharts powerCycleData={powerCycleData} barreData={barreData} />
         </TabsContent>
 
         <TabsContent value="comparison" className="space-y-8">
-          <PowerCycleVsBarreComparison data={powerCycleVsBarreData} />
+          <PowerCycleVsBarreComparison powerCycleData={powerCycleData} barreData={barreData} />
         </TabsContent>
 
         <TabsContent value="charts" className="space-y-8">
-          <PowerCycleVsBarreCharts data={powerCycleVsBarreData} />
+          <PowerCycleVsBarreCharts powerCycleData={powerCycleData} barreData={barreData} />
         </TabsContent>
 
         <TabsContent value="performance" className="space-y-8">
-          <PowerCycleVsBarreTopBottomLists data={powerCycleVsBarreData} onItemClick={handleItemClick} />
+          <PowerCycleVsBarreTopBottomLists 
+            powerCycleData={powerCycleData} 
+            barreData={barreData} 
+            onItemClick={handleItemClick} 
+          />
         </TabsContent>
 
         <TabsContent value="detailed" className="space-y-8">
-          <PowerCycleVsBarreDataTable data={powerCycleVsBarreData} onItemClick={handleItemClick} />
+          <div className="text-center p-8">
+            <p className="text-gray-600">Detailed data table coming soon...</p>
+          </div>
         </TabsContent>
       </Tabs>
 
@@ -124,7 +140,7 @@ export const PowerCycleVsBarreSection: React.FC = () => {
           isOpen={!!drillDownData}
           onClose={() => setDrillDownData(null)}
           data={drillDownData}
-          type="powercycle-barre"
+          type="trainer"
         />
       )}
 
