@@ -1,6 +1,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useGoogleSheets } from './useGoogleSheets';
+import { SalesData } from '@/types/dashboard';
 
 export interface DiscountAnalysisData {
   memberId: string;
@@ -28,77 +29,38 @@ export const useDiscountAnalysis = () => {
   useEffect(() => {
     if (salesData && salesData.length > 0) {
       try {
-        console.log('Processing discount analysis data...', salesData.length, 'items');
-        
-        const parseNumber = (value: any): number => {
-          if (value === null || value === undefined || value === '') return 0;
-          // Handle string values with currency symbols or commas
-          const cleanValue = value.toString().replace(/[₹,\s]/g, '');
-          const num = parseFloat(cleanValue);
-          return isNaN(num) ? 0 : num;
-        };
+        const processedData: DiscountAnalysisData[] = salesData.map((item: any) => ({
+          memberId: item.memberId || item['Member ID'] || '',
+          customerName: item.customerName || item['Customer Name'] || '',
+          customerEmail: item.customerEmail || item['Customer Email'] || '',
+          paymentDate: item.paymentDate || item['Payment Date'] || '',
+          paymentValue: item.paymentValue || item['Payment Value'] || 0,
+          paymentItem: item.paymentItem || item['Payment Item'] || '',
+          paymentMethod: item.paymentMethod || item['Payment Method'] || '',
+          soldBy: item.soldBy || item['Sold By'] || '',
+          location: item.calculatedLocation || item['Calculated Location'] || '',
+          cleanedProduct: item.cleanedProduct || item['Cleaned Product'] || '',
+          cleanedCategory: item.cleanedCategory || item['Cleaned Category'] || '',
+          mrpPreTax: item['mrp-PreTax'] || item['Mrp - Pre Tax'] || 0,
+          mrpPostTax: item['mrp-PostTax'] || item['Mrp - Post Tax'] || 0,
+          discountAmount: item['discountAmount-Mrp-PaymentValue'] || item['Discount Amount -Mrp- Payment Value'] || 0,
+          discountPercentage: item['discountPercentage-discountAmount/mrp*100'] || item['Discount Percentage - discount amount/mrp*100'] || 0,
+          membershipType: item.membershipType || item['Membership Type'] || '',
+        }));
 
-        const parseDate = (dateStr: string) => {
-          if (!dateStr) return '';
-          try {
-            // Split date and time if present
-            const [datePart] = dateStr.split(' ');
-            const [day, month, year] = datePart.split('/');
-            // Create ISO date string for proper parsing
-            const isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-            return new Date(isoDate).toISOString().split('T')[0];
-          } catch (e) {
-            console.error('Date parsing error:', e);
-            return '';
-          }
-        };
-
-        const processedData: DiscountAnalysisData[] = salesData.map((item: any) => {
-          const discountAmount = parseNumber(item['Discount Amount -Mrp- Payment Value']);
-          const discountPercentage = parseNumber(item['Discount Percentage - discount amount/mrp*100']);
-          
-          return {
-            memberId: item['Member ID']?.toString() || '',
-            customerName: item['Customer Name'] || '',
-            customerEmail: item['Customer Email'] || '',
-            paymentDate: parseDate(item['Payment Date'] || ''),
-            paymentValue: parseNumber(item['Payment Value']),
-            paymentItem: item['Payment Item'] || '',
-            paymentMethod: item['Payment Method'] || '',
-            soldBy: item['Sold By'] === '-' ? 'Online/System' : (item['Sold By'] || 'Unknown'),
-            location: item['Calculated Location'] || '',
-            cleanedProduct: item['Cleaned Product'] || '',
-            cleanedCategory: item['Cleaned Category'] || '',
-            mrpPreTax: parseNumber(item['Mrp - Pre Tax']),
-            mrpPostTax: parseNumber(item['Mrp - Post Tax']),
-            discountAmount,
-            discountPercentage,
-            membershipType: item['Membership Type'] || '',
-          };
-        });
-
-        // Filter for transactions with actual discounts - check both amount and percentage
-        const discountedTransactions = processedData.filter(item => {
-          const hasDiscountAmount = item.discountAmount && item.discountAmount > 0;
-          const hasDiscountPercentage = item.discountPercentage && item.discountPercentage > 0;
-          return hasDiscountAmount || hasDiscountPercentage;
-        });
+        // Filter for transactions with discounts
+        const discountedTransactions = processedData.filter(item => 
+          item.discountAmount > 0 || item.discountPercentage > 0
+        );
 
         console.log('Discount Analysis - Total transactions:', processedData.length);
         console.log('Discount Analysis - Discounted transactions:', discountedTransactions.length);
-        
-        if (discountedTransactions.length > 0) {
-          console.log('Sample discount transaction:', discountedTransactions[0]);
-        }
 
         setDiscountData(discountedTransactions);
       } catch (error) {
         console.error('Error processing discount data:', error);
         setDiscountData([]);
       }
-    } else {
-      console.log('No sales data available for discount analysis');
-      setDiscountData([]);
     }
   }, [salesData]);
 
