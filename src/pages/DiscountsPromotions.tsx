@@ -1,4 +1,3 @@
-
 import React, { useEffect, useMemo, useState } from 'react';
 import { RefinedLoader } from '@/components/ui/RefinedLoader';
 import { useDiscountsData } from '@/hooks/useDiscountsData';
@@ -41,7 +40,6 @@ const DiscountsPromotions = () => {
     setLoading(loading, 'Loading discount and promotional data...');
   }, [loading, setLoading]);
 
-  // Apply global filters
   const filteredData = useMemo(() => {
     if (!data) return [];
     
@@ -103,7 +101,6 @@ const DiscountsPromotions = () => {
     return result;
   }, [data, filters, selectedLocation]);
 
-  // Calculate hero metrics from filtered data
   const heroMetrics = useMemo(() => {
     if (!filteredData || filteredData.length === 0) {
       return {
@@ -160,14 +157,12 @@ const DiscountsPromotions = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-orange-50/30 to-amber-50/20 relative">
-      {/* Enhanced Hero Section */}
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-orange-800 via-red-800 to-pink-800">
           <div className="absolute inset-0 bg-black/30"></div>
         </div>
         
         <div className="relative z-10 container mx-auto px-6 py-16">
-          {/* Dashboard Button and Sticky Notes Toggle - Top Left */}
           <div className="absolute top-6 left-6 flex gap-2">
             <Button onClick={() => navigate('/')} variant="outline" size="sm" className="gap-2 bg-white/10 backdrop-blur-sm border-white/20 text-white hover:bg-white/20 hover:border-white/30 transition-all duration-200">
               <Home className="w-4 h-4" />
@@ -198,7 +193,6 @@ const DiscountsPromotions = () => {
               Comprehensive analysis of discount strategies and promotional impact across all sales channels
             </p>
 
-            {/* Animated Key Metrics */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mt-8 animate-fade-in-up delay-500">
               <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 border border-white/20 hover:bg-white/20 transition-all duration-300">
                 <div className="flex items-center gap-2 mb-2">
@@ -266,7 +260,6 @@ const DiscountsPromotions = () => {
 
       <div className="container mx-auto px-6 py-8">
         <main className="space-y-8">
-          {/* Filter Section */}
           <DiscountFilterSection
             data={data || []}
             onFiltersChange={setFilters}
@@ -274,46 +267,39 @@ const DiscountsPromotions = () => {
             onToggleCollapse={() => setIsFiltersCollapsed(!isFiltersCollapsed)}
           />
 
-          {/* Location Selector */}
           <DiscountLocationSelector
             data={data || []}
             selectedLocation={selectedLocation}
             onLocationChange={setSelectedLocation}
           />
 
-          {/* Animated Metric Cards */}
           <DiscountMetricCards
             data={filteredData}
             filters={filters}
             onDrillDown={handleDrillDown}
           />
 
-          {/* Interactive Charts */}
           <DiscountInteractiveCharts
             data={filteredData}
             filters={filters}
           />
 
-          {/* Interactive Top/Bottom Lists */}
           <DiscountInteractiveTopBottomLists
             data={filteredData}
             filters={filters}
             onDrillDown={handleDrillDown}
           />
 
-          {/* Month-on-Month Table */}
           <DiscountMonthOnMonthTable
             data={filteredData}
             filters={filters}
           />
 
-          {/* Year-on-Year Table */}
           <DiscountYearOnYearTable
             data={filteredData}
             filters={filters}
           />
 
-          {/* Full Width Data Tables */}
           <DiscountDataTable
             data={filteredData}
             filters={filters}
@@ -322,14 +308,10 @@ const DiscountsPromotions = () => {
         </main>
       </div>
       
-      {/* Enhanced Sticky Notes Overlay */}
       {showStickyNotes && (
-        <EnhancedStickyNotes className="fixed inset-0 pointer-events-none z-40">
-          <div className="pointer-events-auto" />
-        </EnhancedStickyNotes>
+        <EnhancedStickyNotes className="fixed inset-0 pointer-events-none z-40" />
       )}
       
-      {/* Drill Down Modal */}
       <DrillDownModal
         isOpen={drillDownModal.isOpen}
         onClose={() => setDrillDownModal({ ...drillDownModal, isOpen: false })}
