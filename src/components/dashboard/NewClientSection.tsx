@@ -1,13 +1,14 @@
+
 import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { NewClientFilterSection } from './NewClientFilterSection';
+import { EnhancedClientConversionFilterSection } from './EnhancedClientConversionFilterSection';
 import { ClientConversionCharts } from './ClientConversionCharts';
 import { ClientAcquisitionFunnel } from './ClientAcquisitionFunnel';
 import { ClientConversionTopBottomLists } from './ClientConversionTopBottomLists';
-import { ClientConversionMetrics } from './ClientConversionMetrics';
+import { EnhancedClientConversionMetrics } from './EnhancedClientConversionMetrics';
 import { ConversionAnalyticsTables } from './ConversionAnalyticsTables';
 import { ClientConversionDataTable } from './ClientConversionDataTable';
 import { ClientConversionMonthOnMonthTable } from './ClientConversionMonthOnMonthTable';
@@ -18,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Eye, BarChart3, Users, Target, TrendingUp } from 'lucide-react';
 import { NewClientData, NewClientFilterOptions } from '@/types/dashboard';
 import { formatCurrency, formatNumber, formatPercentage } from '@/utils/formatters';
+import { getPreviousMonthDateRange } from '@/utils/dateUtils';
 
 interface NewClientSectionProps {
   data: NewClientData[];
@@ -29,20 +31,22 @@ export const NewClientSection: React.FC<NewClientSectionProps> = ({
   const [showSourceData, setShowSourceData] = useState(false);
   const [drillDownData, setDrillDownData] = useState<any>(null);
   const [activeTab, setActiveTab] = useState('overview');
-  const [filters, setFilters] = useState<NewClientFilterOptions>({
-    dateRange: {
-      start: '',
-      end: ''
-    },
-    location: [],
-    homeLocation: [],
-    trainer: [],
-    paymentMethod: [],
-    retentionStatus: [],
-    conversionStatus: [],
-    isNew: [],
-    minLTV: undefined,
-    maxLTV: undefined
+  
+  // Initialize filters with previous month dates
+  const [filters, setFilters] = useState<NewClientFilterOptions>(() => {
+    const previousMonth = getPreviousMonthDateRange();
+    return {
+      dateRange: previousMonth,
+      location: [],
+      homeLocation: [],
+      trainer: [],
+      paymentMethod: [],
+      retentionStatus: [],
+      conversionStatus: [],
+      isNew: [],
+      minLTV: undefined,
+      maxLTV: undefined
+    };
   });
 
   // Helper function to filter data
@@ -160,15 +164,17 @@ export const NewClientSection: React.FC<NewClientSectionProps> = ({
 
   return (
     <div className="space-y-8">
-      {/* Filter Section - Collapsed by default */}
-      <NewClientFilterSection
+      {/* Filter Section - Using Enhanced Filter */}
+      <EnhancedClientConversionFilterSection
         filters={filters}
         onFiltersChange={setFilters}
-        data={data}
+        locations={uniqueLocations}
+        trainers={uniqueTrainers}
+        membershipTypes={uniqueMembershipTypes}
       />
 
-      {/* Real Data Metrics */}
-      <ClientConversionMetrics data={filteredData} />
+      {/* Enhanced Metrics using filtered data */}
+      <EnhancedClientConversionMetrics data={filteredData} />
 
       {/* Main Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">

@@ -1,39 +1,62 @@
+
 import React, { useEffect, useMemo, useState } from 'react';
 import { RefinedLoader } from '@/components/ui/RefinedLoader';
 import { useDiscountsData } from '@/hooks/useDiscountsData';
-import { useGlobalLoading } from '@/hooks/useGlobalLoading';
-import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Home, Tag, TrendingDown, Users, Percent, DollarSign, StickyNote } from 'lucide-react';
-import { Footer } from '@/components/ui/footer';
-import { formatCurrency, formatNumber } from '@/utils/formatters';
+import { useLoading } from '@/contexts/LoadingContext';
 import { DiscountFilterSection } from '@/components/dashboard/DiscountFilterSection';
 import { DiscountLocationSelector } from '@/components/dashboard/DiscountLocationSelector';
 import { DiscountMetricCards } from '@/components/dashboard/DiscountMetricCards';
 import { DiscountInteractiveCharts } from '@/components/dashboard/DiscountInteractiveCharts';
 import { DiscountInteractiveTopBottomLists } from '@/components/dashboard/DiscountInteractiveTopBottomLists';
-import { DiscountDataTable } from '@/components/dashboard/DiscountDataTable';
 import { DiscountMonthOnMonthTable } from '@/components/dashboard/DiscountMonthOnMonthTable';
 import { DiscountYearOnYearTable } from '@/components/dashboard/DiscountYearOnYearTable';
+import { DiscountDataTable } from '@/components/dashboard/DiscountDataTable';
 import { DrillDownModal } from '@/components/dashboard/DrillDownModal';
 import { EnhancedStickyNotes } from '@/components/ui/EnhancedStickyNotes';
+import { Button } from '@/components/ui/button';
+import { Home, TrendingDown, Percent, DollarSign, Package, Target, FileText } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { formatCurrency, formatNumber, formatPercentage } from '@/utils/formatters';
+import { getPreviousMonthDateRange } from '@/utils/dateUtils';
 
-const DiscountsPromotions = () => {
-  const { data, loading } = useDiscountsData();
-  const { isLoading: globalLoading, setLoading } = useGlobalLoading();
+interface DiscountFilters {
+  dateRange: { start: string; end: string };
+  paymentMethod: string[];
+  category: string[];
+  product: string[];
+  soldBy: string[];
+  minDiscount?: number;
+  maxDiscount?: number;
+  discountRange: string[];
+}
+
+const DiscountsPromotions: React.FC = () => {
   const navigate = useNavigate();
-  const [isFiltersCollapsed, setIsFiltersCollapsed] = useState(true);
-  const [filters, setFilters] = useState<any>({});
-  const [selectedLocation, setSelectedLocation] = useState<string>('all');
+  const { setLoading } = useLoading();
+  const { data, loading, error } = useDiscountsData();
   const [showStickyNotes, setShowStickyNotes] = useState(false);
-  const [drillDownModal, setDrillDownModal] = useState<{
-    isOpen: boolean;
-    data: any;
-    type: 'metric' | 'product' | 'category' | 'member' | 'soldBy' | 'paymentMethod' | 'client-conversion' | 'trainer' | 'location';
-  }>({
+  const [isFiltersCollapsed, setIsFiltersCollapsed] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState<string>('all');
+  
+  // Initialize filters with previous month dates
+  const [filters, setFilters] = useState<DiscountFilters>(() => {
+    const previousMonth = getPreviousMonthDateRange();
+    return {
+      dateRange: previousMonth,
+      paymentMethod: [],
+      category: [],
+      product: [],
+      soldBy: [],
+      minDiscount: undefined,
+      maxDiscount: undefined,
+      discountRange: []
+    };
+  });
+
+  const [drillDownModal, setDrillDownModal] = useState({
     isOpen: false,
     data: null,
-    type: 'metric'
+    type: ''
   });
 
   useEffect(() => {
@@ -43,116 +66,118 @@ const DiscountsPromotions = () => {
   const filteredData = useMemo(() => {
     if (!data) return [];
     
-    let result = [...data]; // Show all data, including items without discounts
-    
+    let result = data;
+
+    // Apply date range filter
+    if (filters.dateRange.start || filters.dateRange.end) {
+      const startDate = filters.dateRange.start ? new Date(filters.dateRange.start) : null;
+      const endDate = filters.dateRange.end ? new Date(filters.dateRange.end) : null;
+
+      result = result.filter(item => {
+        if (!item.paymentDate) return false;
+        
+        let itemDate: Date;
+        if (item.paymentDate.includes('/')) {
+          const [day, month, year] = item.paymentDate.split(' ')[0].split('/');
+          itemDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        } else {
+          itemDate = new Date(item.paymentDate);
+        }
+        
+        if (isNaN(itemDate.getTime())) return false;
+        if (startDate && itemDate < startDate) return false;
+        if (endDate && itemDate > endDate) return false;
+        return true;
+      });
+    }
+
     // Apply location filter
     if (selectedLocation !== 'all') {
       result = result.filter(item => item.calculatedLocation === selectedLocation);
     }
-    
+
     // Apply other filters
-    if (filters.location && filters.location !== 'all') {
-      result = result.filter(item => item.calculatedLocation === filters.location);
+    if (filters.paymentMethod.length) {
+      result = result.filter(item => filters.paymentMethod.includes(item.paymentMethod));
     }
-    
-    if (filters.category && filters.category !== 'all') {
-      result = result.filter(item => item.cleanedCategory === filters.category);
+
+    if (filters.category.length) {
+      result = result.filter(item => filters.category.includes(item.cleanedCategory));
     }
-    
-    if (filters.product && filters.product !== 'all') {
-      result = result.filter(item => item.cleanedProduct === filters.product);
+
+    if (filters.product.length) {
+      result = result.filter(item => filters.product.includes(item.cleanedProduct));
     }
-    
-    if (filters.soldBy && filters.soldBy !== 'all') {
-      const soldByValue = filters.soldBy === 'Online/System' ? '-' : filters.soldBy;
-      result = result.filter(item => item.soldBy === soldByValue);
+
+    if (filters.soldBy.length) {
+      result = result.filter(item => filters.soldBy.includes(item.soldBy));
     }
-    
-    if (filters.paymentMethod && filters.paymentMethod !== 'all') {
-      result = result.filter(item => item.paymentMethod === filters.paymentMethod);
+
+    if (filters.minDiscount !== undefined) {
+      result = result.filter(item => (item.discountAmount || 0) >= filters.minDiscount!);
     }
-    
-    if (filters.minDiscountAmount) {
-      result = result.filter(item => (item.discountAmount || 0) >= filters.minDiscountAmount);
+
+    if (filters.maxDiscount !== undefined) {
+      result = result.filter(item => (item.discountAmount || 0) <= filters.maxDiscount!);
     }
-    
-    if (filters.maxDiscountAmount) {
-      result = result.filter(item => (item.discountAmount || 0) <= filters.maxDiscountAmount);
-    }
-    
-    if (filters.minDiscountPercent) {
-      result = result.filter(item => (item.discountPercentage || 0) >= filters.minDiscountPercent);
-    }
-    
-    if (filters.maxDiscountPercent) {
-      result = result.filter(item => (item.discountPercentage || 0) <= filters.maxDiscountPercent);
-    }
-    
-    if (filters.dateRange?.from || filters.dateRange?.to) {
-      result = result.filter(item => {
-        const itemDate = new Date(item.paymentDate);
-        if (filters.dateRange.from && itemDate < filters.dateRange.from) return false;
-        if (filters.dateRange.to && itemDate > filters.dateRange.to) return false;
-        return true;
-      });
-    }
-    
-    console.log('Filtered discount data:', result.length, 'items');
+
     return result;
   }, [data, filters, selectedLocation]);
 
   const heroMetrics = useMemo(() => {
     if (!filteredData || filteredData.length === 0) {
       return {
-        totalDiscountValue: 0,
+        totalTransactions: 0,
+        totalRevenue: 0,
+        totalDiscounts: 0,
+        avgDiscountPercent: 0,
         discountedTransactions: 0,
-        avgDiscountPercentage: 0,
-        uniqueMembers: 0,
-        unitsSold: 0,
-        totalRevenueLost: 0
+        avgTransactionValue: 0
       };
     }
 
-    const itemsWithDiscounts = filteredData.filter(item => (item.discountAmount || 0) > 0 || (item.discountPercentage || 0) > 0);
-    const totalDiscountValue = filteredData.reduce((sum, item) => sum + (item.discountAmount || 0), 0);
-    const discountedTransactions = itemsWithDiscounts.length;
-    const uniqueMembers = new Set(filteredData.map(item => item.customerEmail)).size;
-    const unitsSold = filteredData.length;
-    const totalDiscountPercentages = filteredData.reduce((sum, item) => sum + (item.discountPercentage || 0), 0);
-    const avgDiscountPercentage = filteredData.length > 0 ? totalDiscountPercentages / filteredData.length : 0;
-    const totalRevenueLost = filteredData.reduce((sum, item) => sum + ((item.mrpPostTax || item.mrpPreTax || item.paymentValue || 0) - (item.paymentValue || 0)), 0);
+    const totalTransactions = filteredData.length;
+    const totalRevenue = filteredData.reduce((sum, item) => sum + (item.paymentValue || 0), 0);
+    const totalDiscounts = filteredData.reduce((sum, item) => sum + (item.discountAmount || 0), 0);
+    const discountedTransactions = filteredData.filter(item => (item.discountAmount || 0) > 0).length;
+    
+    const totalDiscountPercent = filteredData.reduce((sum, item) => sum + (item.discountPercentage || 0), 0);
+    const avgDiscountPercent = discountedTransactions > 0 ? totalDiscountPercent / discountedTransactions : 0;
+    const avgTransactionValue = totalTransactions > 0 ? totalRevenue / totalTransactions : 0;
 
     return {
-      totalDiscountValue,
+      totalTransactions,
+      totalRevenue,
+      totalDiscounts,
+      avgDiscountPercent,
       discountedTransactions,
-      avgDiscountPercentage,
-      uniqueMembers,
-      unitsSold,
-      totalRevenueLost
+      avgTransactionValue
     };
   }, [filteredData]);
 
-  const handleDrillDown = (title: string, rawData: any[], type: string) => {
-    console.log('DrillDown called with:', { title, dataLength: rawData.length, type });
-    
-    const drillDownData = {
-      name: title,
-      totalValue: rawData.reduce((sum, item) => sum + (item.paymentValue || 0), 0),
-      totalTransactions: rawData.length,
-      totalCustomers: new Set(rawData.map(item => item.customerEmail)).size,
-      rawData: rawData,
-      metricValue: rawData.reduce((sum, item) => sum + (item.discountAmount || 0), 0)
-    };
-    
+  const handleDrillDown = (data: any, type: string) => {
     setDrillDownModal({
       isOpen: true,
-      data: drillDownData,
-      type: 'metric'
+      data,
+      type
     });
   };
 
-  if (globalLoading) {
-    return <RefinedLoader subtitle="Loading discount and promotional data..." />;
+  if (loading) {
+    return <RefinedLoader message="Loading discount and promotional analysis..." />;
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center text-red-600">
+          <p>Error loading discount data: {error}</p>
+          <Button onClick={() => window.location.reload()} className="mt-4">
+            Retry
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -168,90 +193,83 @@ const DiscountsPromotions = () => {
               <Home className="w-4 h-4" />
               Dashboard
             </Button>
+            
             <Button 
-              onClick={() => setShowStickyNotes(!showStickyNotes)} 
+              onClick={() => setShowStickyNotes(!showStickyNotes)}
               variant="outline" 
               size="sm" 
-              className="gap-2 bg-white/10 backdrop-blur-sm border-white/20 text-white hover:bg-white/20 hover:border-white/30 transition-all duration-200"
+              className={`gap-2 backdrop-blur-sm border-white/20 text-white hover:border-white/30 transition-all duration-200 ${
+                showStickyNotes 
+                  ? 'bg-white/20 border-white/30' 
+                  : 'bg-white/10 hover:bg-white/20'
+              }`}
             >
-              <StickyNote className="w-4 h-4" />
-              Notes
+              <FileText className="w-4 h-4" />
+              {showStickyNotes ? 'Hide' : 'Show'} Notes
             </Button>
           </div>
 
-          <div className="text-center space-y-6 pt-8">
-            <div className="inline-flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-full px-6 py-2 border border-white/20 animate-fade-in-up">
-              <Tag className="w-5 h-5 text-orange-300" />
-              <span className="font-medium text-gray-50 uppercase">Discount Analytics</span>
+          <div className="text-center text-white animate-fade-in">
+            <div className="flex items-center justify-center gap-4 mb-6">
+              <div className="p-3 bg-white/10 backdrop-blur-sm rounded-full border border-white/20">
+                <Percent className="w-8 h-8" />
+              </div>
+              <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-white via-orange-100 to-amber-100 bg-clip-text text-transparent">
+                Discounts & Promotions
+              </h1>
             </div>
             
-            <h1 className="text-5xl font-bold bg-gradient-to-r from-white via-orange-100 to-amber-100 bg-clip-text text-transparent animate-fade-in-up delay-200 md:text-7xl">
-              Discounts & Promotions
-            </h1>
-            
-            <p className="text-xl text-orange-100 max-w-2xl mx-auto leading-relaxed animate-fade-in-up delay-300">
+            <p className="text-xl text-orange-100 mb-8 max-w-3xl mx-auto leading-relaxed">
               Comprehensive analysis of discount strategies and promotional impact across all sales channels
             </p>
 
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mt-8 animate-fade-in-up delay-500">
               <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 border border-white/20 hover:bg-white/20 transition-all duration-300">
                 <div className="flex items-center gap-2 mb-2">
-                  <DollarSign className="w-5 h-5 text-red-300" />
-                  <span className="text-xs text-orange-200 uppercase font-medium">Discount Value</span>
+                  <Package className="w-5 h-5 text-orange-300" />
+                  <span className="text-xs font-medium text-orange-200">Total Transactions</span>
                 </div>
-                <div className="text-2xl font-bold text-white">
-                  {formatCurrency(heroMetrics.totalDiscountValue)}
-                </div>
+                <p className="text-2xl font-bold text-white">{formatNumber(heroMetrics.totalTransactions)}</p>
               </div>
 
               <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 border border-white/20 hover:bg-white/20 transition-all duration-300">
                 <div className="flex items-center gap-2 mb-2">
-                  <TrendingDown className="w-5 h-5 text-yellow-300" />
-                  <span className="text-xs text-orange-200 uppercase font-medium">Transactions</span>
+                  <DollarSign className="w-5 h-5 text-green-300" />
+                  <span className="text-xs font-medium text-green-200">Total Revenue</span>
                 </div>
-                <div className="text-2xl font-bold text-white">
-                  {formatNumber(heroMetrics.discountedTransactions)}
-                </div>
-              </div>
-
-              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 border border-white/20 hover:bg-white/20 transition-all duration-300">
-                <div className="flex items-center gap-2 mb-2">
-                  <Percent className="w-5 h-5 text-green-300" />
-                  <span className="text-xs text-orange-200 uppercase font-medium">Avg Discount</span>
-                </div>
-                <div className="text-2xl font-bold text-white">
-                  {heroMetrics.avgDiscountPercentage.toFixed(1)}%
-                </div>
-              </div>
-
-              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 border border-white/20 hover:bg-white/20 transition-all duration-300">
-                <div className="flex items-center gap-2 mb-2">
-                  <Users className="w-5 h-5 text-blue-300" />
-                  <span className="text-xs text-orange-200 uppercase font-medium">Members</span>
-                </div>
-                <div className="text-2xl font-bold text-white">
-                  {formatNumber(heroMetrics.uniqueMembers)}
-                </div>
-              </div>
-
-              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 border border-white/20 hover:bg-white/20 transition-all duration-300">
-                <div className="flex items-center gap-2 mb-2">
-                  <Tag className="w-5 h-5 text-purple-300" />
-                  <span className="text-xs text-orange-200 uppercase font-medium">Units Sold</span>
-                </div>
-                <div className="text-2xl font-bold text-white">
-                  {formatNumber(heroMetrics.unitsSold)}
-                </div>
+                <p className="text-2xl font-bold text-white">{formatCurrency(heroMetrics.totalRevenue)}</p>
               </div>
 
               <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 border border-white/20 hover:bg-white/20 transition-all duration-300">
                 <div className="flex items-center gap-2 mb-2">
                   <TrendingDown className="w-5 h-5 text-red-300" />
-                  <span className="text-xs text-orange-200 uppercase font-medium">Revenue Lost</span>
+                  <span className="text-xs font-medium text-red-200">Total Discounts</span>
                 </div>
-                <div className="text-2xl font-bold text-white">
-                  {formatCurrency(heroMetrics.totalRevenueLost)}
+                <p className="text-2xl font-bold text-white">{formatCurrency(heroMetrics.totalDiscounts)}</p>
+              </div>
+
+              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 border border-white/20 hover:bg-white/20 transition-all duration-300">
+                <div className="flex items-center gap-2 mb-2">
+                  <Percent className="w-5 h-5 text-blue-300" />
+                  <span className="text-xs font-medium text-blue-200">Avg Discount %</span>
                 </div>
+                <p className="text-2xl font-bold text-white">{formatPercentage(heroMetrics.avgDiscountPercent)}</p>
+              </div>
+
+              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 border border-white/20 hover:bg-white/20 transition-all duration-300">
+                <div className="flex items-center gap-2 mb-2">
+                  <Target className="w-5 h-5 text-purple-300" />
+                  <span className="text-xs font-medium text-purple-200">Discounted Sales</span>
+                </div>
+                <p className="text-2xl font-bold text-white">{formatNumber(heroMetrics.discountedTransactions)}</p>
+              </div>
+
+              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 border border-white/20 hover:bg-white/20 transition-all duration-300">
+                <div className="flex items-center gap-2 mb-2">
+                  <DollarSign className="w-5 h-5 text-yellow-300" />
+                  <span className="text-xs font-medium text-yellow-200">Avg Transaction</span>
+                </div>
+                <p className="text-2xl font-bold text-white">{formatCurrency(heroMetrics.avgTransactionValue)}</p>
               </div>
             </div>
           </div>
@@ -303,7 +321,7 @@ const DiscountsPromotions = () => {
           <DiscountDataTable
             data={filteredData}
             filters={filters}
-            onRowClick={handleDrillDown}
+            onDrillDown={handleDrillDown}
           />
         </main>
       </div>
@@ -318,37 +336,6 @@ const DiscountsPromotions = () => {
         data={drillDownModal.data}
         type={drillDownModal.type}
       />
-      
-      <Footer />
-
-      <style>{`
-        @keyframes fade-in-up {
-          from {
-            opacity: 0;
-            transform: translateY(30px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        
-        .animate-fade-in-up {
-          animation: fade-in-up 0.6s ease-out forwards;
-        }
-        
-        .delay-200 {
-          animation-delay: 0.2s;
-        }
-        
-        .delay-300 {
-          animation-delay: 0.3s;
-        }
-        
-        .delay-500 {
-          animation-delay: 0.5s;
-        }
-      `}</style>
     </div>
   );
 };
