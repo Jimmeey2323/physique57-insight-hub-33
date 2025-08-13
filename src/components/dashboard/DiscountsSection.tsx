@@ -1,176 +1,257 @@
 
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { ModernDataTable } from '@/components/ui/ModernDataTable';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Users, Target, TrendingUp, Calendar, MapPin, User, DollarSign } from 'lucide-react';
-import { useSalesData } from '@/hooks/useSalesData';
-import { usePayrollData } from '@/hooks/usePayrollData';
-import { formatCurrency, formatNumber, formatPercentage } from '@/utils/formatters';
+import { SalesData } from '@/types/dashboard';
+import { formatCurrency, formatNumber } from '@/utils/formatters';
+import { Calendar } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 
-interface DiscountAnalysisData {
-  date: string;
-  location: string;
-  itemsSold: number;
-  mrpPreTax: number;
-  discountPercentage: number;
-  mrpPostTax: number;
-  tax: number;
-  totalRevenue: number;
+interface DiscountYearOnYearTableProps {
+  data: SalesData[];
+  filters?: any;
 }
 
-const DiscountsSection = () => {
-  const { data: salesData, loading, error } = useSalesData();
-  const { data: payrollData } = usePayrollData();
-
-  // Transform SalesData to DiscountAnalysisData format
-  const discountData = useMemo(() => {
-    if (!salesData) return [];
+export const DiscountYearOnYearTable: React.FC<DiscountYearOnYearTableProps> = ({ data, filters }) => {
+  const processedData = useMemo(() => {
+    const discountedData = data.filter(item => (item.discountAmount || 0) > 0);
     
-    return salesData.map(item => ({
-      date: item.paymentDate || '',
-      location: item.calculatedLocation || 'Unknown',
-      itemsSold: 1, // Each sales record represents one item sold
-      mrpPreTax: item.mrpPreTax || item.paymentValue || 0,
-      discountPercentage: item.discountPercentage || 0,
-      mrpPostTax: item.mrpPostTax || item.paymentValue || 0,
-      tax: item.paymentVAT || 0,
-      totalRevenue: item.paymentValue || 0
-    }));
-  }, [salesData]);
+    // Group by year and month
+    const yearMonthData = discountedData.reduce((acc, item) => {
+      const date = new Date(item.paymentDate);
+      const year = date.getFullYear();
+      const month = date.getMonth() + 1;
+      const monthName = date.toLocaleDateString('en-US', { month: 'long' });
+      const key = `${monthName}`;
+      
+      if (!acc[key]) {
+        acc[key] = { month: monthName, years: {} };
+      }
+      
+      if (!acc[key].years[year]) {
+        acc[key].years[year] = {
+          transactions: 0,
+          totalDiscount: 0,
+          totalRevenue: 0,
+          totalPotentialRevenue: 0,
+          uniqueCustomers: new Set(),
+          discountPercentages: []
+        };
+      }
 
-  const discountColumns: Array<{
-    key: keyof DiscountAnalysisData;
-    header: string;
-    align?: 'left' | 'center' | 'right';
-    render?: (value: any, item: any) => React.ReactNode;
-  }> = [
-    {
-      key: 'date',
-      header: 'Date',
-      align: 'left',
-      render: (value: string) => (
-        <div className="flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-blue-600" />
-          <Badge className="bg-gradient-to-r from-blue-100 to-purple-100 text-blue-800 font-semibold">
-            {value}
-          </Badge>
-        </div>
-      )
+      acc[key].years[year].transactions += 1;
+      acc[key].years[year].totalDiscount += item.discountAmount || 0;
+      acc[key].years[year].totalRevenue += item.paymentValue || 0;
+      acc[key].years[year].totalPotentialRevenue += item.mrpPostTax || item.paymentValue || 0;
+      acc[key].years[year].uniqueCustomers.add(item.customerEmail);
+      acc[key].years[year].discountPercentages.push(item.discountPercentage || 0);
+
+      return acc;
+    }, {} as Record<string, any>);
+
+    // Convert to table format
+    const months = ['January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'];
+
+    return months.map(month => {
+      const monthData = yearMonthData[month];
+      if (!monthData) {
+        return {
+          month,
+          year2024: { transactions: 0, totalDiscount: 0, totalRevenue: 0, discountRate: 0, avgDiscount: 0, atv: 0, auv: 0, customers: 0 },
+          year2025: { transactions: 0, totalDiscount: 0, totalRevenue: 0, discountRate: 0, avgDiscount: 0, atv: 0, auv: 0, customers: 0 },
+          yoyChange: { transactions: 0, discount: 0, revenue: 0, atv: 0 }
+        };
+      }
+
+      const data2024 = monthData.years[2024] || { transactions: 0, totalDiscount: 0, totalRevenue: 0, totalPotentialRevenue: 0, uniqueCustomers: new Set() };
+      const data2025 = monthData.years[2025] || { transactions: 0, totalDiscount: 0, totalRevenue: 0, totalPotentialRevenue: 0, uniqueCustomers: new Set() };
+
+      const year2024 = {
+        transactions: data2024.transactions,
+        totalDiscount: data2024.totalDiscount,
+        totalRevenue: data2024.totalRevenue,
+        discountRate: data2024.totalPotentialRevenue > 0 ? (data2024.totalDiscount / data2024.totalPotentialRevenue) * 100 : 0,
+        avgDiscount: data2024.transactions > 0 ? data2024.totalDiscount / data2024.transactions : 0,
+        atv: data2024.transactions > 0 ? data2024.totalRevenue / data2024.transactions : 0,
+        auv: data2024.transactions > 0 ? data2024.totalRevenue / data2024.transactions : 0,
+        customers: data2024.uniqueCustomers.size
+      };
+
+      const year2025 = {
+        transactions: data2025.transactions,
+        totalDiscount: data2025.totalDiscount,
+        totalRevenue: data2025.totalRevenue,
+        discountRate: data2025.totalPotentialRevenue > 0 ? (data2025.totalDiscount / data2025.totalPotentialRevenue) * 100 : 0,
+        avgDiscount: data2025.transactions > 0 ? data2025.totalDiscount / data2025.transactions : 0,
+        atv: data2025.transactions > 0 ? data2025.totalRevenue / data2025.transactions : 0,
+        auv: data2025.transactions > 0 ? data2025.totalRevenue / data2025.transactions : 0,
+        customers: data2025.uniqueCustomers.size
+      };
+
+      const yoyChange = {
+        transactions: year2024.transactions > 0 ? ((year2025.transactions - year2024.transactions) / year2024.transactions) * 100 : 0,
+        discount: year2024.totalDiscount > 0 ? ((year2025.totalDiscount - year2024.totalDiscount) / year2024.totalDiscount) * 100 : 0,
+        revenue: year2024.totalRevenue > 0 ? ((year2025.totalRevenue - year2024.totalRevenue) / year2024.totalRevenue) * 100 : 0,
+        atv: year2024.atv > 0 ? ((year2025.atv - year2024.atv) / year2024.atv) * 100 : 0
+      };
+
+      return { month, year2024, year2025, yoyChange };
+    });
+  }, [data]);
+
+  const totals = useMemo(() => {
+    return processedData.reduce((acc, row) => ({
+      year2024: {
+        transactions: acc.year2024.transactions + row.year2024.transactions,
+        totalDiscount: acc.year2024.totalDiscount + row.year2024.totalDiscount,
+        totalRevenue: acc.year2024.totalRevenue + row.year2024.totalRevenue,
+        customers: acc.year2024.customers + row.year2024.customers
+      },
+      year2025: {
+        transactions: acc.year2025.transactions + row.year2025.transactions,
+        totalDiscount: acc.year2025.totalDiscount + row.year2025.totalDiscount,
+        totalRevenue: acc.year2025.totalRevenue + row.year2025.totalRevenue,
+        customers: acc.year2025.customers + row.year2025.customers
+      }
+    }), { 
+      year2024: { transactions: 0, totalDiscount: 0, totalRevenue: 0, customers: 0 },
+      year2025: { transactions: 0, totalDiscount: 0, totalRevenue: 0, customers: 0 }
+    });
+  }, [processedData]);
+
+  const columns = [
+    { 
+      key: 'month', 
+      header: 'Month', 
+      align: 'left' as const,
+      render: (value: string) => <span className="font-semibold text-slate-800">{value}</span>
     },
-    {
-      key: 'location',
-      header: 'Location',
-      align: 'left',
-      render: (value: string) => (
-        <div className="flex items-center gap-2">
-          <MapPin className="w-4 h-4 text-gray-500" />
-          <Badge className="bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800 font-semibold">
-            {value}
-          </Badge>
-        </div>
-      )
+    { 
+      key: 'year2024', 
+      header: '2024 Transactions', 
+      align: 'center' as const,
+      render: (value: any) => <span className="font-medium">{formatNumber(value.transactions)}</span>
     },
-    {
-      key: 'itemsSold',
-      header: 'Items Sold',
-      align: 'center',
-      render: (value: number) => (
-        <Badge className="bg-gradient-to-r from-green-100 to-green-200 text-green-800 font-bold">
-          {formatNumber(value)}
+    { 
+      key: 'year2025', 
+      header: '2025 Transactions', 
+      align: 'center' as const,
+      render: (value: any) => <span className="font-medium">{formatNumber(value.transactions)}</span>
+    },
+    { 
+      key: 'yoyChange', 
+      header: 'Transaction Change', 
+      align: 'center' as const,
+      render: (value: any) => (
+        <Badge variant={value.transactions >= 0 ? "default" : "destructive"} className="min-w-[70px] justify-center">
+          {value.transactions > 0 ? '+' : ''}{value.transactions.toFixed(1)}%
         </Badge>
       )
     },
-    {
-      key: 'mrpPreTax',
-      header: 'MRP Pre-Tax',
-      align: 'right',
-      render: (value: number) => (
-        <div className="flex items-center justify-end gap-1">
-          <DollarSign className="w-4 h-4 text-green-600" />
-          <Badge className="bg-gradient-to-r from-green-500 to-green-600 text-white font-bold">
-            {formatCurrency(value)}
-          </Badge>
-        </div>
-      )
+    { 
+      key: 'year2024', 
+      header: '2024 Discount', 
+      align: 'center' as const,
+      render: (value: any) => <span className="text-red-600 font-medium">{formatCurrency(value.totalDiscount)}</span>
     },
-    {
-      key: 'discountPercentage',
-      header: 'Discount %',
-      align: 'center',
-      render: (value: number) => (
-        <Badge className="bg-gradient-to-r from-red-100 to-red-200 text-red-800 font-semibold">
-          {formatPercentage(value)}
+    { 
+      key: 'year2025', 
+      header: '2025 Discount', 
+      align: 'center' as const,
+      render: (value: any) => <span className="text-red-600 font-medium">{formatCurrency(value.totalDiscount)}</span>
+    },
+    { 
+      key: 'yoyChange', 
+      header: 'Discount Change', 
+      align: 'center' as const,
+      render: (value: any) => (
+        <Badge variant={value.discount <= 0 ? "default" : "destructive"} className="min-w-[70px] justify-center">
+          {value.discount > 0 ? '+' : ''}{value.discount.toFixed(1)}%
         </Badge>
       )
     },
-    {
-      key: 'mrpPostTax',
-      header: 'MRP Post-Tax',
-      align: 'right',
-      render: (value: number) => (
-        <div className="flex items-center justify-end gap-1">
-          <DollarSign className="w-4 h-4 text-green-600" />
-          <Badge className="bg-gradient-to-r from-green-500 to-green-600 text-white font-bold">
-            {formatCurrency(value)}
-          </Badge>
-        </div>
-      )
+    { 
+      key: 'year2024', 
+      header: '2024 ATV', 
+      align: 'center' as const,
+      render: (value: any) => <span className="text-blue-600 font-medium">{formatCurrency(value.atv)}</span>
     },
-    {
-      key: 'tax',
-      header: 'Tax',
-      align: 'right',
-      render: (value: number) => (
-        <div className="flex items-center justify-end gap-1">
-          <DollarSign className="w-4 h-4 text-green-600" />
-          <Badge className="bg-gradient-to-r from-green-500 to-green-600 text-white font-bold">
-            {formatCurrency(value)}
-          </Badge>
-        </div>
-      )
+    { 
+      key: 'year2025', 
+      header: '2025 ATV', 
+      align: 'center' as const,
+      render: (value: any) => <span className="text-blue-600 font-medium">{formatCurrency(value.atv)}</span>
     },
-    {
-      key: 'totalRevenue',
-      header: 'Total Revenue',
-      align: 'right',
-      render: (value: number) => (
-        <div className="flex items-center justify-end gap-1">
-          <DollarSign className="w-4 h-4 text-green-600" />
-          <Badge className="bg-gradient-to-r from-green-500 to-green-600 text-white font-bold">
-            {formatCurrency(value)}
-          </Badge>
-        </div>
+    { 
+      key: 'yoyChange', 
+      header: 'ATV Change', 
+      align: 'center' as const,
+      render: (value: any) => (
+        <Badge variant={value.atv >= 0 ? "default" : "destructive"} className="min-w-[70px] justify-center">
+          {value.atv > 0 ? '+' : ''}{value.atv.toFixed(1)}%
+        </Badge>
       )
     }
   ];
 
   return (
-    <Card className="bg-white shadow-xl border-0 overflow-hidden">
-      <CardHeader className="bg-gradient-to-r from-orange-50 via-yellow-50 to-green-50 border-b border-gray-200">
-        <CardTitle className="flex items-center gap-3 text-xl font-bold">
-          <div className="w-10 h-10 bg-gradient-to-r from-orange-500 to-green-500 rounded-xl flex items-center justify-center">
-            <TrendingUp className="w-5 h-5 text-white" />
-          </div>
-          Discount Analysis
-          <Badge className="bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold">
-            {discountData.length} records
-          </Badge>
+    <Card className="bg-gradient-to-br from-white via-purple-50/30 to-blue-50/20 border-0 shadow-xl">
+      <CardHeader>
+        <CardTitle className="text-xl font-bold text-slate-800 flex items-center gap-2">
+          <Calendar className="w-6 h-6 text-purple-600" />
+          Year-on-Year Discount Comparison (2024 vs 2025)
         </CardTitle>
-        <p className="text-sm text-gray-600 mt-2">
-          Analysis of discounts applied and their impact on revenue
-        </p>
       </CardHeader>
-      <CardContent className="p-0">
+      <CardContent>
         <ModernDataTable
-          data={discountData}
-          columns={discountColumns}
+          data={processedData}
+          columns={columns}
+          showFooter={true}
+          footerData={{
+            month: 'TOTAL',
+            year2024: totals.year2024,
+            year2025: totals.year2025,
+            yoyChange: {
+              transactions: totals.year2024.transactions > 0 ? ((totals.year2025.transactions - totals.year2024.transactions) / totals.year2024.transactions) * 100 : 0,
+              discount: totals.year2024.totalDiscount > 0 ? ((totals.year2025.totalDiscount - totals.year2024.totalDiscount) / totals.year2024.totalDiscount) * 100 : 0,
+              revenue: totals.year2024.totalRevenue > 0 ? ((totals.year2025.totalRevenue - totals.year2024.totalRevenue) / totals.year2024.totalRevenue) * 100 : 0,
+              atv: totals.year2024.totalRevenue > 0 && totals.year2024.transactions > 0 && totals.year2025.totalRevenue > 0 && totals.year2025.transactions > 0 ? 
+                (((totals.year2025.totalRevenue / totals.year2025.transactions) - (totals.year2024.totalRevenue / totals.year2024.transactions)) / (totals.year2024.totalRevenue / totals.year2024.transactions)) * 100 : 0
+            }
+          }}
           maxHeight="500px"
+          stickyHeader={true}
         />
+        
+        <div className="mt-4 p-4 bg-slate-50 rounded-lg">
+          <h4 className="font-semibold text-slate-800 mb-2">Year-on-Year Summary</h4>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div>
+              <span className="text-slate-600">2024 Total Discount:</span>
+              <div className="font-semibold text-red-600">{formatCurrency(totals.year2024.totalDiscount)}</div>
+            </div>
+            <div>
+              <span className="text-slate-600">2025 Total Discount:</span>
+              <div className="font-semibold text-red-600">{formatCurrency(totals.year2025.totalDiscount)}</div>
+            </div>
+            <div>
+              <span className="text-slate-600">Discount Change:</span>
+              <div className={`font-semibold ${totals.year2024.totalDiscount > 0 ? 
+                ((totals.year2025.totalDiscount - totals.year2024.totalDiscount) / totals.year2024.totalDiscount) * 100 > 0 ? 'text-red-600' : 'text-green-600'
+                : 'text-slate-600'}`}>
+                {totals.year2024.totalDiscount > 0 ? 
+                  `${((totals.year2025.totalDiscount - totals.year2024.totalDiscount) / totals.year2024.totalDiscount) * 100 > 0 ? '+' : ''}${(((totals.year2025.totalDiscount - totals.year2024.totalDiscount) / totals.year2024.totalDiscount) * 100).toFixed(1)}%`
+                  : 'N/A'}
+              </div>
+            </div>
+            <div>
+              <span className="text-slate-600">Revenue Impact:</span>
+              <div className="font-semibold">{formatCurrency(totals.year2025.totalRevenue - totals.year2024.totalRevenue)}</div>
+            </div>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
 };
-
-export default DiscountsSection;
