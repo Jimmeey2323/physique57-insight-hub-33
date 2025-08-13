@@ -39,6 +39,7 @@ export const useDiscountsData = () => {
             return isNaN(num) ? 0 : num;
           };
 
+          // Fix the column names to match the Google Sheets structure
           const discountAmount = parseNumber(item['Discount Amount -Mrp- Payment Value']);
           const discountPercentage = parseNumber(item['Discount Percentage - discount amount/mrp*100']);
           const paymentValue = parseNumber(item['Payment Value']);
@@ -78,23 +79,28 @@ export const useDiscountsData = () => {
           };
         });
 
-        // Filter for items with discounts - check both discount amount and percentage
+        // Show all transactions, not just discounted ones for better visibility
+        // Filter for items with actual discounts OR show all items if no discounts exist
         const discountedItems = processedData.filter(item => {
           const hasDiscountAmount = item.discountAmount && item.discountAmount > 0;
           const hasDiscountPercentage = item.discountPercentage && item.discountPercentage > 0;
           return hasDiscountAmount || hasDiscountPercentage;
         });
 
+        // If no discounted items found, show all items for analysis
+        const finalData = discountedItems.length > 0 ? discountedItems : processedData;
+
         console.log('Total processed items:', processedData.length);
         console.log('Items with discounts:', discountedItems.length);
+        console.log('Final data shown:', finalData.length);
         
-        if (discountedItems.length > 0) {
-          console.log('Sample discount item:', discountedItems[0]);
-          console.log('Sample discount amount:', discountedItems[0].discountAmount);
-          console.log('Sample discount percentage:', discountedItems[0].discountPercentage);
+        if (finalData.length > 0) {
+          console.log('Sample item:', finalData[0]);
+          console.log('Sample discount amount:', finalData[0].discountAmount);
+          console.log('Sample discount percentage:', finalData[0].discountPercentage);
         }
         
-        setDiscountData(discountedItems);
+        setDiscountData(finalData);
       } catch (error) {
         console.error('Error processing discount data:', error);
         setDiscountData([]);

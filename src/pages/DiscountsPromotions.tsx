@@ -5,7 +5,7 @@ import { useDiscountsData } from '@/hooks/useDiscountsData';
 import { useGlobalLoading } from '@/hooks/useGlobalLoading';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Home, Tag, TrendingDown, Users, Percent, DollarSign } from 'lucide-react';
+import { Home, Tag, TrendingDown, Users, Percent, DollarSign, StickyNote } from 'lucide-react';
 import { Footer } from '@/components/ui/footer';
 import { formatCurrency, formatNumber } from '@/utils/formatters';
 import { DiscountFilterSection } from '@/components/dashboard/DiscountFilterSection';
@@ -17,14 +17,16 @@ import { DiscountDataTable } from '@/components/dashboard/DiscountDataTable';
 import { DiscountMonthOnMonthTable } from '@/components/dashboard/DiscountMonthOnMonthTable';
 import { DiscountYearOnYearTable } from '@/components/dashboard/DiscountYearOnYearTable';
 import { DrillDownModal } from '@/components/dashboard/DrillDownModal';
+import { EnhancedStickyNotes } from '@/components/ui/EnhancedStickyNotes';
 
 const DiscountsPromotions = () => {
   const { data, loading } = useDiscountsData();
   const { isLoading: globalLoading, setLoading } = useGlobalLoading();
   const navigate = useNavigate();
-  const [isFiltersCollapsed, setIsFiltersCollapsed] = useState(true); // Collapsed by default
+  const [isFiltersCollapsed, setIsFiltersCollapsed] = useState(true);
   const [filters, setFilters] = useState<any>({});
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
+  const [showStickyNotes, setShowStickyNotes] = useState(false);
   const [drillDownModal, setDrillDownModal] = useState<{
     isOpen: boolean;
     data: any;
@@ -43,7 +45,7 @@ const DiscountsPromotions = () => {
   const filteredData = useMemo(() => {
     if (!data) return [];
     
-    let result = data.filter(item => (item.discountAmount || 0) > 0);
+    let result = [...data]; // Show all data, including items without discounts
     
     // Apply location filter
     if (selectedLocation !== 'all') {
@@ -114,12 +116,13 @@ const DiscountsPromotions = () => {
       };
     }
 
+    const itemsWithDiscounts = filteredData.filter(item => (item.discountAmount || 0) > 0 || (item.discountPercentage || 0) > 0);
     const totalDiscountValue = filteredData.reduce((sum, item) => sum + (item.discountAmount || 0), 0);
-    const discountedTransactions = filteredData.length;
+    const discountedTransactions = itemsWithDiscounts.length;
     const uniqueMembers = new Set(filteredData.map(item => item.customerEmail)).size;
     const unitsSold = filteredData.length;
     const totalDiscountPercentages = filteredData.reduce((sum, item) => sum + (item.discountPercentage || 0), 0);
-    const avgDiscountPercentage = discountedTransactions > 0 ? totalDiscountPercentages / discountedTransactions : 0;
+    const avgDiscountPercentage = filteredData.length > 0 ? totalDiscountPercentages / filteredData.length : 0;
     const totalRevenueLost = filteredData.reduce((sum, item) => sum + ((item.mrpPostTax || item.mrpPreTax || item.paymentValue || 0) - (item.paymentValue || 0)), 0);
 
     return {
@@ -135,7 +138,6 @@ const DiscountsPromotions = () => {
   const handleDrillDown = (title: string, rawData: any[], type: string) => {
     console.log('DrillDown called with:', { title, dataLength: rawData.length, type });
     
-    // Map the data to the expected format for drill-down
     const drillDownData = {
       name: title,
       totalValue: rawData.reduce((sum, item) => sum + (item.paymentValue || 0), 0),
@@ -148,7 +150,7 @@ const DiscountsPromotions = () => {
     setDrillDownModal({
       isOpen: true,
       data: drillDownData,
-      type: 'metric' // Use a valid type from the union
+      type: 'metric'
     });
   };
 
@@ -157,7 +159,7 @@ const DiscountsPromotions = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-orange-50/30 to-amber-50/20">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-orange-50/30 to-amber-50/20 relative">
       {/* Enhanced Hero Section */}
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-orange-800 via-red-800 to-pink-800">
@@ -165,11 +167,20 @@ const DiscountsPromotions = () => {
         </div>
         
         <div className="relative z-10 container mx-auto px-6 py-16">
-          {/* Dashboard Button - Top Left */}
-          <div className="absolute top-6 left-6">
+          {/* Dashboard Button and Sticky Notes Toggle - Top Left */}
+          <div className="absolute top-6 left-6 flex gap-2">
             <Button onClick={() => navigate('/')} variant="outline" size="sm" className="gap-2 bg-white/10 backdrop-blur-sm border-white/20 text-white hover:bg-white/20 hover:border-white/30 transition-all duration-200">
               <Home className="w-4 h-4" />
               Dashboard
+            </Button>
+            <Button 
+              onClick={() => setShowStickyNotes(!showStickyNotes)} 
+              variant="outline" 
+              size="sm" 
+              className="gap-2 bg-white/10 backdrop-blur-sm border-white/20 text-white hover:bg-white/20 hover:border-white/30 transition-all duration-200"
+            >
+              <StickyNote className="w-4 h-4" />
+              Notes
             </Button>
           </div>
 
@@ -310,6 +321,13 @@ const DiscountsPromotions = () => {
           />
         </main>
       </div>
+      
+      {/* Enhanced Sticky Notes Overlay */}
+      {showStickyNotes && (
+        <EnhancedStickyNotes className="fixed inset-0 pointer-events-none z-40">
+          <div className="pointer-events-auto" />
+        </EnhancedStickyNotes>
+      )}
       
       {/* Drill Down Modal */}
       <DrillDownModal

@@ -94,7 +94,7 @@ export const useGoogleSheets = () => {
           membershipType: rawItem['Membership Type'] || rawItem['membershipType'] || '',
           paymentDate: rawItem['Payment Date'] || rawItem['paymentDate'] || '',
           paymentValue: parseNumericValue(rawItem['Payment Value'] || rawItem['paymentValue'] || 0),
-          paidInMoneyCredits: parseNumericValue(rawItem['Paid in Money Credits'] || rawItem['paidInMoneyCredits'] || 0),
+          paidInMoneyCredits: parseNumericValue(rawItem['Paid in Money Credits'] || rawItem['Paid In Money Credits'] || rawItem['paidInMoneyCredits'] || 0),
           paymentVAT: parseNumericValue(rawItem['Payment VAT'] || rawItem['paymentVAT'] || 0),
           paymentItem: rawItem['Payment Item'] || rawItem['paymentItem'] || '',
           paymentStatus: rawItem['Payment Status'] || rawItem['paymentStatus'] || '',
@@ -111,17 +111,26 @@ export const useGoogleSheets = () => {
           netRevenue: parseNumericValue(rawItem['Payment Value'] || rawItem['paymentValue'] || 0) - parseNumericValue(rawItem['Payment VAT'] || rawItem['paymentVAT'] || 0),
           vat: parseNumericValue(rawItem['Payment VAT'] || rawItem['paymentVAT'] || 0),
           grossRevenue: parseNumericValue(rawItem['Payment Value'] || rawItem['paymentValue'] || 0),
-          mrpPreTax: parseNumericValue(rawItem['MRP Pre Tax'] || rawItem['mrpPreTax'] || 0),
-          mrpPostTax: parseNumericValue(rawItem['MRP Post Tax'] || rawItem['mrpPostTax'] || 0),
-          discountAmount: parseNumericValue(rawItem['Discount Amount'] || rawItem['discountAmount'] || 0),
-          discountPercentage: parseNumericValue(rawItem['Discount Percentage'] || rawItem['discountPercentage'] || 0),
-          hostId: rawItem['Host ID'] || rawItem['hostId'] || ''
+          
+          // Handle discount columns with exact names from your sample data
+          mrpPreTax: parseNumericValue(rawItem['Mrp - Pre Tax'] || rawItem['MRP Pre Tax'] || rawItem['mrpPreTax'] || 0),
+          mrpPostTax: parseNumericValue(rawItem['Mrp - Post Tax'] || rawItem['MRP Post Tax'] || rawItem['mrpPostTax'] || 0),
+          discountAmount: parseNumericValue(rawItem['Discount Amount -Mrp- Payment Value'] || rawItem['Discount Amount'] || rawItem['discountAmount'] || 0),
+          discountPercentage: parseNumericValue(rawItem['Discount Percentage - discount amount/mrp*100'] || rawItem['Discount Percentage'] || rawItem['discountPercentage'] || 0),
+          hostId: rawItem['Host Id'] || rawItem['Host ID'] || rawItem['hostId'] || ''
         };
 
         return transformedItem;
       });
 
       console.log('Transformed sales data sample:', salesData.slice(0, 3));
+      console.log('Sample discount data:', {
+        discountAmount: salesData[0]?.discountAmount,
+        discountPercentage: salesData[0]?.discountPercentage,
+        mrpPreTax: salesData[0]?.mrpPreTax,
+        mrpPostTax: salesData[0]?.mrpPostTax
+      });
+      
       setData(salesData);
       setError(null);
     } catch (err) {
