@@ -30,22 +30,8 @@ export const useDiscountsData = () => {
             }
           };
 
-          // Parse numeric values safely
-          const parseNumber = (value: any): number => {
-            if (value === null || value === undefined || value === '') return 0;
-            // Handle string values with currency symbols or commas
-            const cleanValue = value.toString().replace(/[₹,\s]/g, '');
-            const num = parseFloat(cleanValue);
-            return isNaN(num) ? 0 : num;
-          };
-
-          // Fix the column names to match the Google Sheets structure
-          const discountAmount = parseNumber(item['Discount Amount -Mrp- Payment Value']);
-          const discountPercentage = parseNumber(item['Discount Percentage - discount amount/mrp*100']);
-          const paymentValue = parseNumber(item['Payment Value']);
-          const mrpPreTax = parseNumber(item['Mrp - Pre Tax']);
-          const mrpPostTax = parseNumber(item['Mrp - Post Tax']);
-          const paymentVAT = parseNumber(item['Payment VAT']);
+          const discountAmount = parseFloat(item['Discount Amount -Mrp- Payment Value'] || '0') || 0;
+          const discountPercentage = parseFloat(item['Discount Percentage - discount amount/mrp*100'] || '0') || 0;
           
           return {
             memberId: item['Member ID']?.toString() || '',
@@ -55,59 +41,37 @@ export const useDiscountsData = () => {
             paymentCategory: item['Payment Category'] || '',
             membershipType: item['Membership Type'] || '',
             paymentDate: parseDate(item['Payment Date'] || ''),
-            paymentValue,
-            paidInMoneyCredits: parseNumber(item['Paid In Money Credits']),
-            paymentVAT,
+            paymentValue: parseFloat(item['Payment Value'] || '0') || 0,
+            paidInMoneyCredits: parseFloat(item['Paid In Money Credits'] || '0') || 0,
+            paymentVAT: parseFloat(item['Payment VAT'] || '0') || 0,
             paymentItem: item['Payment Item'] || '',
             paymentStatus: item['Payment Status'] || '',
             paymentMethod: item['Payment Method'] || '',
             paymentTransactionId: item['Payment Transaction ID']?.toString() || '',
             stripeToken: item['Stripe Token'] || '',
-            soldBy: item['Sold By'] === '-' ? 'Online/System' : (item['Sold By'] || 'Unknown'),
+            soldBy: item['Sold By'] || '',
             saleReference: item['Sale Reference']?.toString() || '',
             calculatedLocation: item['Calculated Location'] || '',
             cleanedProduct: item['Cleaned Product'] || '',
             cleanedCategory: item['Cleaned Category'] || '',
             hostId: item['Host Id']?.toString() || '',
-            mrpPreTax,
-            mrpPostTax,
+            mrpPreTax: parseFloat(item['Mrp - Pre Tax'] || '0') || 0,
+            mrpPostTax: parseFloat(item['Mrp - Post Tax'] || '0') || 0,
             discountAmount,
             discountPercentage,
-            netRevenue: paymentValue - paymentVAT,
-            vat: paymentVAT,
-            grossRevenue: paymentValue,
+            netRevenue: (parseFloat(item['Payment Value'] || '0') || 0) - (parseFloat(item['Payment VAT'] || '0') || 0),
+            vat: parseFloat(item['Payment VAT'] || '0') || 0,
+            grossRevenue: parseFloat(item['Payment Value'] || '0') || 0,
           };
         });
 
-        // Show all transactions, not just discounted ones for better visibility
-        // Filter for items with actual discounts OR show all items if no discounts exist
-        const discountedItems = processedData.filter(item => {
-          const hasDiscountAmount = item.discountAmount && item.discountAmount > 0;
-          const hasDiscountPercentage = item.discountPercentage && item.discountPercentage > 0;
-          return hasDiscountAmount || hasDiscountPercentage;
-        });
-
-        // If no discounted items found, show all items for analysis
-        const finalData = discountedItems.length > 0 ? discountedItems : processedData;
-
-        console.log('Total processed items:', processedData.length);
-        console.log('Items with discounts:', discountedItems.length);
-        console.log('Final data shown:', finalData.length);
-        
-        if (finalData.length > 0) {
-          console.log('Sample item:', finalData[0]);
-          console.log('Sample discount amount:', finalData[0].discountAmount);
-          console.log('Sample discount percentage:', finalData[0].discountPercentage);
-        }
-        
-        setDiscountData(finalData);
+        console.log('Processed discount data:', processedData.length, 'items');
+        console.log('Sample processed item:', processedData[0]);
+        setDiscountData(processedData);
       } catch (error) {
         console.error('Error processing discount data:', error);
         setDiscountData([]);
       }
-    } else {
-      console.log('No sales data available for discount processing');
-      setDiscountData([]);
     }
   }, [salesData]);
 
