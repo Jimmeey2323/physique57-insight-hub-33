@@ -4,12 +4,12 @@ import { useSessionsData } from '@/hooks/useSessionsData';
 import { PowerCycleVsBarreFilterSection } from './PowerCycleVsBarreFilterSection';
 import { PowerCycleVsBarreComparison } from './PowerCycleVsBarreComparison';
 import { PowerCycleVsBarreCharts } from './PowerCycleVsBarreCharts';
-import { PowerCycleVsBarreTopBottomLists } from './PowerCycleVsBarreTopBottomLists';
+import { PowerCycleVsBarreTopBottomListsWrapper } from './PowerCycleVsBarreTopBottomListsWrapper';
 import { DrillDownModal } from './DrillDownModal';
 import { useGlobalLoading } from '@/hooks/useGlobalLoading';
 import { RefinedLoader } from '@/components/ui/RefinedLoader';
-import { getPreviousMonthDateRange } from '@/utils/dateUtils';
 import { useSessionsFilters } from '@/contexts/SessionsFiltersContext';
+import { SessionData as DashboardSessionData } from '@/types/dashboard';
 
 export const PowerCycleVsBarreSection: React.FC = () => {
   const { data, loading, error } = useSessionsData();
@@ -34,8 +34,8 @@ export const PowerCycleVsBarreSection: React.FC = () => {
 
     // Apply date filter
     if (filters.dateRange.start || filters.dateRange.end) {
-      const startDate = filters.dateRange.start ? new Date(filters.dateRange.start) : null;
-      const endDate = filters.dateRange.end ? new Date(filters.dateRange.end) : null;
+      const startDate = filters.dateRange.start;
+      const endDate = filters.dateRange.end;
       
       result = result.filter(session => {
         const sessionDate = new Date(session.date);
@@ -68,17 +68,42 @@ export const PowerCycleVsBarreSection: React.FC = () => {
     return result;
   }, [data, filters]);
 
+  // Convert hook SessionData to dashboard SessionData format
+  const convertToDashboardFormat = (sessions: typeof data): DashboardSessionData[] => {
+    return sessions.map(session => ({
+      sessionId: session.sessionId,
+      date: session.date,
+      time: session.time,
+      classType: session.sessionName,
+      cleanedClass: session.cleanedClass,
+      instructor: session.trainerName,
+      location: session.location,
+      capacity: session.capacity,
+      booked: session.bookedCount,
+      checkedIn: session.checkedInCount,
+      checkedInCount: session.checkedInCount,
+      waitlisted: 0,
+      waitlist: 0,
+      noShows: session.bookedCount - session.checkedInCount,
+      fillPercentage: session.fillPercentage || 0,
+      sessionCount: 1,
+      totalAttendees: session.checkedInCount
+    }));
+  };
+
   const powerCycleData = useMemo(() => {
-    return filteredData.filter(session => 
+    const filtered = filteredData.filter(session => 
       session.cleanedClass?.toLowerCase().includes('powercycle') || 
       session.cleanedClass?.toLowerCase().includes('power cycle')
     );
+    return convertToDashboardFormat(filtered);
   }, [filteredData]);
 
   const barreData = useMemo(() => {
-    return filteredData.filter(session => 
+    const filtered = filteredData.filter(session => 
       session.cleanedClass?.toLowerCase().includes('barre')
     );
+    return convertToDashboardFormat(filtered);
   }, [filteredData]);
 
   // Calculate metrics for PowerCycle
@@ -86,7 +111,7 @@ export const PowerCycleVsBarreSection: React.FC = () => {
     const totalSessions = powerCycleData.length;
     const totalAttendance = powerCycleData.reduce((sum, session) => sum + (session.checkedInCount || 0), 0);
     const totalCapacity = powerCycleData.reduce((sum, session) => sum + (session.capacity || 0), 0);
-    const totalBookings = powerCycleData.reduce((sum, session) => sum + (session.bookedCount || 0), 0);
+    const totalBookings = powerCycleData.reduce((sum, session) => sum + (session.booked || 0), 0);
     const emptySessions = powerCycleData.filter(session => (session.checkedInCount || 0) === 0).length;
     const avgFillRate = totalCapacity > 0 ? (totalAttendance / totalCapacity) * 100 : 0;
     const avgSessionSize = totalSessions > 0 ? totalAttendance / totalSessions : 0;
@@ -112,7 +137,7 @@ export const PowerCycleVsBarreSection: React.FC = () => {
     const totalSessions = barreData.length;
     const totalAttendance = barreData.reduce((sum, session) => sum + (session.checkedInCount || 0), 0);
     const totalCapacity = barreData.reduce((sum, session) => sum + (session.capacity || 0), 0);
-    const totalBookings = barreData.reduce((sum, session) => sum + (session.bookedCount || 0), 0);
+    const totalBookings = barreData.reduce((sum, session) => sum + (session.booked || 0), 0);
     const emptySessions = barreData.filter(session => (session.checkedInCount || 0) === 0).length;
     const avgFillRate = totalCapacity > 0 ? (totalAttendance / totalCapacity) * 100 : 0;
     const avgSessionSize = totalSessions > 0 ? totalAttendance / totalSessions : 0;
@@ -136,7 +161,7 @@ export const PowerCycleVsBarreSection: React.FC = () => {
   const handleDrillDown = (item: any) => {
     setDrillDownModal({
       isOpen: true,
-      title: `${item.cleanedClass} - ${item.trainerName}`,
+      title: `${item.cleanedClass} - ${item.instructor}`,
       data: [item],
       type: 'metric'
     });
@@ -170,10 +195,9 @@ export const PowerCycleVsBarreSection: React.FC = () => {
         />
       </div>
 
-      <PowerCycleVsBarreTopBottomLists 
+      <PowerCycleVsBarreTopBottomListsWrapper 
         powerCycleData={powerCycleData}
         barreData={barreData}
-        onItemClick={handleDrillDown}
       />
 
       <DrillDownModal
@@ -184,8 +208,10 @@ export const PowerCycleVsBarreSection: React.FC = () => {
           data: [],
           type: 'metric'
         })}
+        title={drillDownModal.title}
         data={drillDownModal.data}
         type={drillDownModal.type}
+        columns={[]}
       />
     </div>
   );
