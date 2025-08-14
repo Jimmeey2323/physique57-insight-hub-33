@@ -9,26 +9,12 @@ import { DrillDownModal } from './DrillDownModal';
 import { useGlobalLoading } from '@/hooks/useGlobalLoading';
 import { RefinedLoader } from '@/components/ui/RefinedLoader';
 import { getPreviousMonthDateRange } from '@/utils/dateUtils';
-
-interface PowerCycleVsBarreFilters {
-  dateRange: { start: string; end: string };
-  location: string[];
-  instructor: string[];
-}
+import { useSessionsFilters } from '@/contexts/SessionsFiltersContext';
 
 export const PowerCycleVsBarreSection: React.FC = () => {
   const { data, loading, error } = useSessionsData();
   const { setLoading } = useGlobalLoading();
-  
-  // Initialize filters with previous month dates
-  const [filters, setFilters] = useState<PowerCycleVsBarreFilters>(() => {
-    const previousMonth = getPreviousMonthDateRange();
-    return {
-      dateRange: previousMonth,
-      location: [],
-      instructor: []
-    };
-  });
+  const { filters } = useSessionsFilters();
   
   const [drillDownModal, setDrillDownModal] = useState({
     isOpen: false,
@@ -59,14 +45,24 @@ export const PowerCycleVsBarreSection: React.FC = () => {
       });
     }
 
-    // Apply location filter
-    if (filters.location.length > 0) {
-      result = result.filter(session => filters.location.includes(session.location));
+    // Apply trainers filter
+    if (filters.trainers.length > 0) {
+      result = result.filter(session => filters.trainers.includes(session.trainerName));
     }
 
-    // Apply instructor filter
-    if (filters.instructor.length > 0) {
-      result = result.filter(session => filters.instructor.includes(session.instructor));
+    // Apply class types filter
+    if (filters.classTypes.length > 0) {
+      result = result.filter(session => filters.classTypes.includes(session.cleanedClass));
+    }
+
+    // Apply day of week filter
+    if (filters.dayOfWeek.length > 0) {
+      result = result.filter(session => filters.dayOfWeek.includes(session.dayOfWeek));
+    }
+
+    // Apply time slots filter
+    if (filters.timeSlots.length > 0) {
+      result = result.filter(session => filters.timeSlots.includes(session.time));
     }
 
     return result;
@@ -85,12 +81,64 @@ export const PowerCycleVsBarreSection: React.FC = () => {
     );
   }, [filteredData]);
 
-  const handleDrillDown = (title: string, data: any[], type: string) => {
+  // Calculate metrics for PowerCycle
+  const powerCycleMetrics = useMemo(() => {
+    const totalSessions = powerCycleData.length;
+    const totalAttendance = powerCycleData.reduce((sum, session) => sum + (session.checkedInCount || 0), 0);
+    const totalCapacity = powerCycleData.reduce((sum, session) => sum + (session.capacity || 0), 0);
+    const totalBookings = powerCycleData.reduce((sum, session) => sum + (session.bookedCount || 0), 0);
+    const emptySessions = powerCycleData.filter(session => (session.checkedInCount || 0) === 0).length;
+    const avgFillRate = totalCapacity > 0 ? (totalAttendance / totalCapacity) * 100 : 0;
+    const avgSessionSize = totalSessions > 0 ? totalAttendance / totalSessions : 0;
+    const nonEmptySessions = totalSessions - emptySessions;
+    const avgSessionSizeExclEmpty = nonEmptySessions > 0 ? totalAttendance / nonEmptySessions : 0;
+    const noShows = totalBookings - totalAttendance;
+
+    return {
+      totalSessions,
+      totalAttendance,
+      totalCapacity,
+      totalBookings,
+      emptySessions,
+      avgFillRate,
+      avgSessionSize,
+      avgSessionSizeExclEmpty,
+      noShows
+    };
+  }, [powerCycleData]);
+
+  // Calculate metrics for Barre
+  const barreMetrics = useMemo(() => {
+    const totalSessions = barreData.length;
+    const totalAttendance = barreData.reduce((sum, session) => sum + (session.checkedInCount || 0), 0);
+    const totalCapacity = barreData.reduce((sum, session) => sum + (session.capacity || 0), 0);
+    const totalBookings = barreData.reduce((sum, session) => sum + (session.bookedCount || 0), 0);
+    const emptySessions = barreData.filter(session => (session.checkedInCount || 0) === 0).length;
+    const avgFillRate = totalCapacity > 0 ? (totalAttendance / totalCapacity) * 100 : 0;
+    const avgSessionSize = totalSessions > 0 ? totalAttendance / totalSessions : 0;
+    const nonEmptySessions = totalSessions - emptySessions;
+    const avgSessionSizeExclEmpty = nonEmptySessions > 0 ? totalAttendance / nonEmptySessions : 0;
+    const noShows = totalBookings - totalAttendance;
+
+    return {
+      totalSessions,
+      totalAttendance,
+      totalCapacity,
+      totalBookings,
+      emptySessions,
+      avgFillRate,
+      avgSessionSize,
+      avgSessionSizeExclEmpty,
+      noShows
+    };
+  }, [barreData]);
+
+  const handleDrillDown = (item: any) => {
     setDrillDownModal({
       isOpen: true,
-      title,
-      data,
-      type: type as any
+      title: `${item.cleanedClass} - ${item.trainerName}`,
+      data: [item],
+      type: 'metric'
     });
   };
 
@@ -108,32 +156,23 @@ export const PowerCycleVsBarreSection: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <PowerCycleVsBarreFilterSection
-        data={data || []}
-        onFiltersChange={setFilters}
-      />
+      <PowerCycleVsBarreFilterSection />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <PowerCycleVsBarreComparison 
-          data={filteredData}
+          powerCycleMetrics={powerCycleMetrics}
+          barreMetrics={barreMetrics}
+          onItemClick={handleDrillDown}
         />
         <PowerCycleVsBarreCharts 
-          data={filteredData}
-        />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <PowerCycleVsBarreComparison 
-          data={filteredData}
-        />
-        
-        <PowerCycleVsBarreCharts 
-          data={filteredData}
+          powerCycleData={powerCycleData}
+          barreData={barreData}
         />
       </div>
 
       <PowerCycleVsBarreTopBottomLists 
-        data={filteredData}
+        powerCycleData={powerCycleData}
+        barreData={barreData}
         onItemClick={handleDrillDown}
       />
 
@@ -146,7 +185,7 @@ export const PowerCycleVsBarreSection: React.FC = () => {
           type: 'metric'
         })}
         data={drillDownModal.data}
-        type="metric"
+        type={drillDownModal.type}
       />
     </div>
   );
