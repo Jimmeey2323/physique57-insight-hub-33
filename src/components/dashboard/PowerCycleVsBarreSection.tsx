@@ -18,8 +18,7 @@ export const PowerCycleVsBarreSection: React.FC = () => {
   
   const [drillDownModal, setDrillDownModal] = useState({
     isOpen: false,
-    title: '',
-    data: [],
+    data: null as any,
     type: 'metric' as any
   });
 
@@ -161,8 +160,7 @@ export const PowerCycleVsBarreSection: React.FC = () => {
   const handleDrillDown = (item: any) => {
     setDrillDownModal({
       isOpen: true,
-      title: `${item.cleanedClass} - ${item.instructor}`,
-      data: [item],
+      data: item,
       type: 'metric'
     });
   };
@@ -204,14 +202,11 @@ export const PowerCycleVsBarreSection: React.FC = () => {
         isOpen={drillDownModal.isOpen}
         onClose={() => setDrillDownModal({
           isOpen: false,
-          title: '',
-          data: [],
+          data: null,
           type: 'metric'
         })}
-        title={drillDownModal.title}
         data={drillDownModal.data}
         type={drillDownModal.type}
-        columns={[]}
       />
     </div>
   );
