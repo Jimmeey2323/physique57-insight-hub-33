@@ -2,28 +2,32 @@
 import React, { useState } from 'react';
 import { DashboardNavigation } from './DashboardNavigation';
 import { SalesAnalyticsSection } from './SalesAnalyticsSection';
-import { ClientConversionSection } from './ClientConversionSection';
+import { NewClientSection } from './NewClientSection';
 import { DiscountsDashboardTab } from './DiscountsDashboardTab';
-import { SessionAnalyticsSection } from './SessionAnalyticsSection';
+import { SessionsSection } from './SessionsSection';
 import { TrainerPerformanceSection } from './TrainerPerformanceSection';
+import { useSalesData } from '@/hooks/useSalesData';
+import { useNewClientData } from '@/hooks/useNewClientData';
 
 export const ComprehensiveExecutiveDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState('sales');
+  const { data: salesData } = useSalesData();
+  const { data: newClientData } = useNewClientData();
 
   const renderContent = () => {
     switch (activeTab) {
       case 'sales':
-        return <SalesAnalyticsSection />;
+        return <SalesAnalyticsSection data={salesData || []} />;
       case 'funnel':
-        return <ClientConversionSection />;
+        return <NewClientSection data={newClientData || []} />;
       case 'discounts':
         return <DiscountsDashboardTab />;
       case 'sessions':
-        return <SessionAnalyticsSection />;
+        return <SessionsSection />;
       case 'trainers':
         return <TrainerPerformanceSection />;
       default:
-        return <SalesAnalyticsSection />;
+        return <SalesAnalyticsSection data={salesData || []} />;
     }
   };
 
