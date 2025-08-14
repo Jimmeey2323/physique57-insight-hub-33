@@ -65,6 +65,8 @@ const DiscountsPromotions: React.FC = () => {
   const filteredData = useMemo(() => {
     if (!data) return [];
     
+    console.log('Raw discount data:', data.length, 'items');
+    
     let result = data;
 
     // Apply date range filter
@@ -120,6 +122,7 @@ const DiscountsPromotions: React.FC = () => {
       result = result.filter(item => (item.discountAmount || 0) <= filters.maxDiscount!);
     }
 
+    console.log('Filtered discount data:', result.length, 'items');
     return result;
   }, [data, filters, selectedLocation]);
 
@@ -154,7 +157,7 @@ const DiscountsPromotions: React.FC = () => {
     };
   }, [filteredData]);
 
-  const handleDrillDown = (data: any, type: string) => {
+  const handleDrillDown = (title: string, data: any[], type: string) => {
     setDrillDownModal({
       isOpen: true,
       data,

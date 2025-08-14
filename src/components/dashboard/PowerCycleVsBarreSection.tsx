@@ -1,61 +1,97 @@
 
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { PowerCycleVsBarreEnhancedFilterSection } from './PowerCycleVsBarreEnhancedFilterSection';
+import React, { useState, useMemo } from 'react';
+import { useSessionsData } from '@/hooks/useSessionsData';
+import { PowerCycleVsBarreFilterSection } from './PowerCycleVsBarreFilterSection';
 import { PowerCycleVsBarreComparison } from './PowerCycleVsBarreComparison';
 import { PowerCycleVsBarreCharts } from './PowerCycleVsBarreCharts';
 import { PowerCycleVsBarreTopBottomLists } from './PowerCycleVsBarreTopBottomLists';
 import { DrillDownModal } from './DrillDownModal';
-import { SourceDataModal } from '@/components/ui/SourceDataModal';
-import { useFilteredSessionsData } from '@/hooks/useFilteredSessionsData';
-import { useSessionsData } from '@/hooks/useSessionsData';
-import { RefinedLoader } from '@/components/ui/RefinedLoader';
 import { useGlobalLoading } from '@/hooks/useGlobalLoading';
-import { TrendingUp, BarChart3, Activity, Users, Eye } from 'lucide-react';
+import { RefinedLoader } from '@/components/ui/RefinedLoader';
 import { getPreviousMonthDateRange } from '@/utils/dateUtils';
 
+interface PowerCycleVsBarreFilters {
+  dateRange: { start: string; end: string };
+  location: string[];
+  instructor: string[];
+}
+
 export const PowerCycleVsBarreSection: React.FC = () => {
+  const { data, loading, error } = useSessionsData();
   const { setLoading } = useGlobalLoading();
-  const { data: rawData, loading, error } = useSessionsData();
-  const filteredData = useFilteredSessionsData(rawData);
   
-  const [activeTab, setActiveTab] = useState('overview');
-  const [drillDownData, setDrillDownData] = useState<any>(null);
-  const [showSourceData, setShowSourceData] = useState(false);
+  // Initialize filters with previous month dates
+  const [filters, setFilters] = useState<PowerCycleVsBarreFilters>(() => {
+    const previousMonth = getPreviousMonthDateRange();
+    return {
+      dateRange: previousMonth,
+      location: [],
+      instructor: []
+    };
+  });
+  
+  const [drillDownModal, setDrillDownModal] = useState({
+    isOpen: false,
+    title: '',
+    data: [],
+    type: 'metric' as any
+  });
 
   React.useEffect(() => {
-    setLoading(loading, 'Loading PowerCycle vs Barre comparison data...');
+    setLoading(loading, 'Loading PowerCycle vs Barre data...');
   }, [loading, setLoading]);
 
-  // Filter for PowerCycle and Barre classes only
-  const powerCycleVsBarreData = React.useMemo(() => {
-    if (!filteredData) return [];
+  const filteredData = useMemo(() => {
+    if (!data) return [];
     
-    return filteredData.filter(session => {
-      const className = session.cleanedClass?.toLowerCase() || '';
-      return className.includes('powercycle') || className.includes('barre');
-    });
+    let result = data;
+
+    // Apply date filter
+    if (filters.dateRange.start || filters.dateRange.end) {
+      const startDate = filters.dateRange.start ? new Date(filters.dateRange.start) : null;
+      const endDate = filters.dateRange.end ? new Date(filters.dateRange.end) : null;
+      
+      result = result.filter(session => {
+        const sessionDate = new Date(session.date);
+        if (startDate && sessionDate < startDate) return false;
+        if (endDate && sessionDate > endDate) return false;
+        return true;
+      });
+    }
+
+    // Apply location filter
+    if (filters.location.length > 0) {
+      result = result.filter(session => filters.location.includes(session.location));
+    }
+
+    // Apply instructor filter
+    if (filters.instructor.length > 0) {
+      result = result.filter(session => filters.instructor.includes(session.instructor));
+    }
+
+    return result;
+  }, [data, filters]);
+
+  const powerCycleData = useMemo(() => {
+    return filteredData.filter(session => 
+      session.cleanedClass?.toLowerCase().includes('powercycle') || 
+      session.cleanedClass?.toLowerCase().includes('power cycle')
+    );
   }, [filteredData]);
 
-  // Separate PowerCycle and Barre data
-  const powerCycleData = React.useMemo(() => {
-    return powerCycleVsBarreData.filter(session => {
-      const className = session.cleanedClass?.toLowerCase() || '';
-      return className.includes('powercycle');
-    });
-  }, [powerCycleVsBarreData]);
+  const barreData = useMemo(() => {
+    return filteredData.filter(session => 
+      session.cleanedClass?.toLowerCase().includes('barre')
+    );
+  }, [filteredData]);
 
-  const barreData = React.useMemo(() => {
-    return powerCycleVsBarreData.filter(session => {
-      const className = session.cleanedClass?.toLowerCase() || '';
-      return className.includes('barre');
+  const handleDrillDown = (title: string, data: any[], type: string) => {
+    setDrillDownModal({
+      isOpen: true,
+      title,
+      data,
+      type: type as any
     });
-  }, [powerCycleVsBarreData]);
-
-  const handleItemClick = (item: any) => {
-    setDrillDownData(item);
   };
 
   if (loading) {
@@ -64,98 +100,54 @@ export const PowerCycleVsBarreSection: React.FC = () => {
 
   if (error) {
     return (
-      <Card className="bg-red-50 border-red-200">
-        <CardContent className="p-6">
-          <p className="text-red-600">Error loading data: {error}</p>
-        </CardContent>
-      </Card>
+      <div className="text-center text-red-600 p-8">
+        <p>Error loading data: {error}</p>
+      </div>
     );
   }
 
   return (
-    <div className="space-y-8">
-      {/* Enhanced Filter Section */}
-      <PowerCycleVsBarreEnhancedFilterSection data={rawData || []} />
+    <div className="space-y-6">
+      <PowerCycleVsBarreFilterSection
+        data={data || []}
+        onFiltersChange={setFilters}
+      />
 
-      {/* Main Content Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <Card className="bg-white shadow-sm border border-gray-200">
-          <CardContent className="p-4">
-            <TabsList className="grid w-full grid-cols-5 bg-gray-100 p-1 rounded-lg">
-              <TabsTrigger value="overview" className="text-sm font-medium">
-                <BarChart3 className="w-4 h-4 mr-2" />
-                Overview
-              </TabsTrigger>
-              <TabsTrigger value="comparison" className="text-sm font-medium">
-                <TrendingUp className="w-4 h-4 mr-2" />
-                Comparison
-              </TabsTrigger>
-              <TabsTrigger value="charts" className="text-sm font-medium">
-                <Activity className="w-4 h-4 mr-2" />
-                Charts
-              </TabsTrigger>
-              <TabsTrigger value="performance" className="text-sm font-medium">
-                <Users className="w-4 h-4 mr-2" />
-                Performance
-              </TabsTrigger>
-              <TabsTrigger value="detailed" className="text-sm font-medium">
-                <Eye className="w-4 h-4 mr-2" />
-                Detailed View
-              </TabsTrigger>
-            </TabsList>
-          </CardContent>
-        </Card>
-
-        <TabsContent value="overview" className="space-y-8">
-          <PowerCycleVsBarreComparison powerCycleData={powerCycleData} barreData={barreData} />
-          <PowerCycleVsBarreCharts powerCycleData={powerCycleData} barreData={barreData} />
-        </TabsContent>
-
-        <TabsContent value="comparison" className="space-y-8">
-          <PowerCycleVsBarreComparison powerCycleData={powerCycleData} barreData={barreData} />
-        </TabsContent>
-
-        <TabsContent value="charts" className="space-y-8">
-          <PowerCycleVsBarreCharts powerCycleData={powerCycleData} barreData={barreData} />
-        </TabsContent>
-
-        <TabsContent value="performance" className="space-y-8">
-          <PowerCycleVsBarreTopBottomLists 
-            powerCycleData={powerCycleData} 
-            barreData={barreData} 
-            onItemClick={handleItemClick} 
-          />
-        </TabsContent>
-
-        <TabsContent value="detailed" className="space-y-8">
-          <div className="text-center p-8">
-            <p className="text-gray-600">Detailed data table coming soon...</p>
-          </div>
-        </TabsContent>
-      </Tabs>
-
-      {/* Modals */}
-      {drillDownData && (
-        <DrillDownModal
-          isOpen={!!drillDownData}
-          onClose={() => setDrillDownData(null)}
-          data={drillDownData}
-          type="trainer"
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <PowerCycleVsBarreComparison 
+          data={filteredData}
         />
-      )}
-
-      {showSourceData && (
-        <SourceDataModal
-          open={showSourceData}
-          onOpenChange={setShowSourceData}
-          sources={[
-            {
-              name: "PowerCycle vs Barre Sessions",
-              data: powerCycleVsBarreData
-            }
-          ]}
+        <PowerCycleVsBarreCharts 
+          data={filteredData}
         />
-      )}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <PowerCycleVsBarreComparison 
+          data={filteredData}
+        />
+        
+        <PowerCycleVsBarreCharts 
+          data={filteredData}
+        />
+      </div>
+
+      <PowerCycleVsBarreTopBottomLists 
+        data={filteredData}
+        onItemClick={handleDrillDown}
+      />
+
+      <DrillDownModal
+        isOpen={drillDownModal.isOpen}
+        onClose={() => setDrillDownModal({
+          isOpen: false,
+          title: '',
+          data: [],
+          type: 'metric'
+        })}
+        data={drillDownModal.data}
+        type="metric"
+      />
     </div>
   );
 };

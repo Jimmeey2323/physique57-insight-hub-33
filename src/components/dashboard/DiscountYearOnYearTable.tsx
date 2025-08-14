@@ -58,65 +58,70 @@ export const DiscountYearOnYearTable: React.FC<DiscountYearOnYearTableProps> = (
       if (!monthData) {
         return {
           month,
-          year2024: { transactions: 0, totalDiscount: 0, totalRevenue: 0, discountRate: 0, avgDiscount: 0, atv: 0, auv: 0, customers: 0 },
-          year2025: { transactions: 0, totalDiscount: 0, totalRevenue: 0, discountRate: 0, avgDiscount: 0, atv: 0, auv: 0, customers: 0 },
-          yoyChange: { transactions: 0, discount: 0, revenue: 0, atv: 0 }
+          transactions2024: 0,
+          transactions2025: 0,
+          discount2024: 0,
+          discount2025: 0,
+          revenue2024: 0,
+          revenue2025: 0,
+          atv2024: 0,
+          atv2025: 0,
+          customers2024: 0,
+          customers2025: 0,
+          transactionChange: 0,
+          discountChange: 0,
+          revenueChange: 0,
+          atvChange: 0
         };
       }
 
       const data2024 = monthData.years[2024] || { transactions: 0, totalDiscount: 0, totalRevenue: 0, totalPotentialRevenue: 0, uniqueCustomers: new Set() };
       const data2025 = monthData.years[2025] || { transactions: 0, totalDiscount: 0, totalRevenue: 0, totalPotentialRevenue: 0, uniqueCustomers: new Set() };
 
-      const year2024 = {
-        transactions: data2024.transactions,
-        totalDiscount: data2024.totalDiscount,
-        totalRevenue: data2024.totalRevenue,
-        discountRate: data2024.totalPotentialRevenue > 0 ? (data2024.totalDiscount / data2024.totalPotentialRevenue) * 100 : 0,
-        avgDiscount: data2024.transactions > 0 ? data2024.totalDiscount / data2024.transactions : 0,
-        atv: data2024.transactions > 0 ? data2024.totalRevenue / data2024.transactions : 0,
-        auv: data2024.transactions > 0 ? data2024.totalRevenue / data2024.transactions : 0,
-        customers: data2024.uniqueCustomers.size
-      };
+      const transactions2024 = data2024.transactions;
+      const transactions2025 = data2025.transactions;
+      const discount2024 = data2024.totalDiscount;
+      const discount2025 = data2025.totalDiscount;
+      const revenue2024 = data2024.totalRevenue;
+      const revenue2025 = data2025.totalRevenue;
+      const atv2024 = transactions2024 > 0 ? revenue2024 / transactions2024 : 0;
+      const atv2025 = transactions2025 > 0 ? revenue2025 / transactions2025 : 0;
 
-      const year2025 = {
-        transactions: data2025.transactions,
-        totalDiscount: data2025.totalDiscount,
-        totalRevenue: data2025.totalRevenue,
-        discountRate: data2025.totalPotentialRevenue > 0 ? (data2025.totalDiscount / data2025.totalPotentialRevenue) * 100 : 0,
-        avgDiscount: data2025.transactions > 0 ? data2025.totalDiscount / data2025.transactions : 0,
-        atv: data2025.transactions > 0 ? data2025.totalRevenue / data2025.transactions : 0,
-        auv: data2025.transactions > 0 ? data2025.totalRevenue / data2025.transactions : 0,
-        customers: data2025.uniqueCustomers.size
+      return {
+        month,
+        transactions2024,
+        transactions2025,
+        discount2024,
+        discount2025,
+        revenue2024,
+        revenue2025,
+        atv2024,
+        atv2025,
+        customers2024: data2024.uniqueCustomers.size,
+        customers2025: data2025.uniqueCustomers.size,
+        transactionChange: transactions2024 > 0 ? ((transactions2025 - transactions2024) / transactions2024) * 100 : 0,
+        discountChange: discount2024 > 0 ? ((discount2025 - discount2024) / discount2024) * 100 : 0,
+        revenueChange: revenue2024 > 0 ? ((revenue2025 - revenue2024) / revenue2024) * 100 : 0,
+        atvChange: atv2024 > 0 ? ((atv2025 - atv2024) / atv2024) * 100 : 0
       };
-
-      const yoyChange = {
-        transactions: year2024.transactions > 0 ? ((year2025.transactions - year2024.transactions) / year2024.transactions) * 100 : 0,
-        discount: year2024.totalDiscount > 0 ? ((year2025.totalDiscount - year2024.totalDiscount) / year2024.totalDiscount) * 100 : 0,
-        revenue: year2024.totalRevenue > 0 ? ((year2025.totalRevenue - year2024.totalRevenue) / year2024.totalRevenue) * 100 : 0,
-        atv: year2024.atv > 0 ? ((year2025.atv - year2024.atv) / year2024.atv) * 100 : 0
-      };
-
-      return { month, year2024, year2025, yoyChange };
     });
   }, [data]);
 
   const totals = useMemo(() => {
     return processedData.reduce((acc, row) => ({
-      year2024: {
-        transactions: acc.year2024.transactions + row.year2024.transactions,
-        totalDiscount: acc.year2024.totalDiscount + row.year2024.totalDiscount,
-        totalRevenue: acc.year2024.totalRevenue + row.year2024.totalRevenue,
-        customers: acc.year2024.customers + row.year2024.customers
-      },
-      year2025: {
-        transactions: acc.year2025.transactions + row.year2025.transactions,
-        totalDiscount: acc.year2025.totalDiscount + row.year2025.totalDiscount,
-        totalRevenue: acc.year2025.totalRevenue + row.year2025.totalRevenue,
-        customers: acc.year2025.customers + row.year2025.customers
-      }
+      transactions2024: acc.transactions2024 + row.transactions2024,
+      transactions2025: acc.transactions2025 + row.transactions2025,
+      discount2024: acc.discount2024 + row.discount2024,
+      discount2025: acc.discount2025 + row.discount2025,
+      revenue2024: acc.revenue2024 + row.revenue2024,
+      revenue2025: acc.revenue2025 + row.revenue2025,
+      customers2024: acc.customers2024 + row.customers2024,
+      customers2025: acc.customers2025 + row.customers2025
     }), { 
-      year2024: { transactions: 0, totalDiscount: 0, totalRevenue: 0, customers: 0 },
-      year2025: { transactions: 0, totalDiscount: 0, totalRevenue: 0, customers: 0 }
+      transactions2024: 0, transactions2025: 0, 
+      discount2024: 0, discount2025: 0, 
+      revenue2024: 0, revenue2025: 0,
+      customers2024: 0, customers2025: 0
     });
   }, [processedData]);
 
@@ -128,72 +133,91 @@ export const DiscountYearOnYearTable: React.FC<DiscountYearOnYearTableProps> = (
       render: (value: string) => <span className="font-semibold text-slate-800">{value}</span>
     },
     { 
-      key: 'year2024', 
+      key: 'transactions2024', 
       header: '2024 Transactions', 
       align: 'center' as const,
-      render: (value: any) => <span className="font-medium">{formatNumber(value.transactions)}</span>
+      render: (value: number) => <span className="font-medium">{formatNumber(value)}</span>
     },
     { 
-      key: 'year2025', 
+      key: 'transactions2025', 
       header: '2025 Transactions', 
       align: 'center' as const,
-      render: (value: any) => <span className="font-medium">{formatNumber(value.transactions)}</span>
+      render: (value: number) => <span className="font-medium">{formatNumber(value)}</span>
     },
     { 
-      key: 'yoyChange', 
+      key: 'transactionChange', 
       header: 'Transaction Change', 
       align: 'center' as const,
-      render: (value: any) => (
-        <Badge variant={value.transactions >= 0 ? "default" : "destructive"} className="min-w-[70px] justify-center">
-          {value.transactions > 0 ? '+' : ''}{value.transactions.toFixed(1)}%
+      render: (value: number) => (
+        <Badge variant={value >= 0 ? "default" : "destructive"} className="min-w-[70px] justify-center">
+          {value > 0 ? '+' : ''}{value.toFixed(1)}%
         </Badge>
       )
     },
     { 
-      key: 'year2024', 
+      key: 'discount2024', 
       header: '2024 Discount', 
       align: 'center' as const,
-      render: (value: any) => <span className="text-red-600 font-medium">{formatCurrency(value.totalDiscount)}</span>
+      render: (value: number) => <span className="text-red-600 font-medium">{formatCurrency(value)}</span>
     },
     { 
-      key: 'year2025', 
+      key: 'discount2025', 
       header: '2025 Discount', 
       align: 'center' as const,
-      render: (value: any) => <span className="text-red-600 font-medium">{formatCurrency(value.totalDiscount)}</span>
+      render: (value: number) => <span className="text-red-600 font-medium">{formatCurrency(value)}</span>
     },
     { 
-      key: 'yoyChange', 
+      key: 'discountChange', 
       header: 'Discount Change', 
       align: 'center' as const,
-      render: (value: any) => (
-        <Badge variant={value.discount <= 0 ? "default" : "destructive"} className="min-w-[70px] justify-center">
-          {value.discount > 0 ? '+' : ''}{value.discount.toFixed(1)}%
+      render: (value: number) => (
+        <Badge variant={value <= 0 ? "default" : "destructive"} className="min-w-[70px] justify-center">
+          {value > 0 ? '+' : ''}{value.toFixed(1)}%
         </Badge>
       )
     },
     { 
-      key: 'year2024', 
+      key: 'atv2024', 
       header: '2024 ATV', 
       align: 'center' as const,
-      render: (value: any) => <span className="text-blue-600 font-medium">{formatCurrency(value.atv)}</span>
+      render: (value: number) => <span className="text-blue-600 font-medium">{formatCurrency(value)}</span>
     },
     { 
-      key: 'year2025', 
+      key: 'atv2025', 
       header: '2025 ATV', 
       align: 'center' as const,
-      render: (value: any) => <span className="text-blue-600 font-medium">{formatCurrency(value.atv)}</span>
+      render: (value: number) => <span className="text-blue-600 font-medium">{formatCurrency(value)}</span>
     },
     { 
-      key: 'yoyChange', 
+      key: 'atvChange', 
       header: 'ATV Change', 
       align: 'center' as const,
-      render: (value: any) => (
-        <Badge variant={value.atv >= 0 ? "default" : "destructive"} className="min-w-[70px] justify-center">
-          {value.atv > 0 ? '+' : ''}{value.atv.toFixed(1)}%
+      render: (value: number) => (
+        <Badge variant={value >= 0 ? "default" : "destructive"} className="min-w-[70px] justify-center">
+          {value > 0 ? '+' : ''}{value.toFixed(1)}%
         </Badge>
       )
     }
   ];
+
+  const footerData = {
+    month: 'TOTAL',
+    transactions2024: totals.transactions2024,
+    transactions2025: totals.transactions2025,
+    discount2024: totals.discount2024,
+    discount2025: totals.discount2025,
+    revenue2024: totals.revenue2024,
+    revenue2025: totals.revenue2025,
+    customers2024: totals.customers2024,
+    customers2025: totals.customers2025,
+    transactionChange: totals.transactions2024 > 0 ? ((totals.transactions2025 - totals.transactions2024) / totals.transactions2024) * 100 : 0,
+    discountChange: totals.discount2024 > 0 ? ((totals.discount2025 - totals.discount2024) / totals.discount2024) * 100 : 0,
+    revenueChange: totals.revenue2024 > 0 ? ((totals.revenue2025 - totals.revenue2024) / totals.revenue2024) * 100 : 0,
+    atv2024: totals.transactions2024 > 0 ? totals.revenue2024 / totals.transactions2024 : 0,
+    atv2025: totals.transactions2025 > 0 ? totals.revenue2025 / totals.transactions2025 : 0,
+    atvChange: totals.transactions2024 > 0 && totals.revenue2024 > 0 && totals.transactions2025 > 0 && totals.revenue2025 > 0 ? 
+      (((totals.revenue2025 / totals.transactions2025) - (totals.revenue2024 / totals.transactions2024)) / (totals.revenue2024 / totals.transactions2024)) * 100 : 0
+  };
 
   return (
     <Card className="bg-gradient-to-br from-white via-purple-50/30 to-blue-50/20 border-0 shadow-xl">
@@ -208,18 +232,7 @@ export const DiscountYearOnYearTable: React.FC<DiscountYearOnYearTableProps> = (
           data={processedData}
           columns={columns}
           showFooter={true}
-          footerData={{
-            month: 'TOTAL',
-            year2024: totals.year2024,
-            year2025: totals.year2025,
-            yoyChange: {
-              transactions: totals.year2024.transactions > 0 ? ((totals.year2025.transactions - totals.year2024.transactions) / totals.year2024.transactions) * 100 : 0,
-              discount: totals.year2024.totalDiscount > 0 ? ((totals.year2025.totalDiscount - totals.year2024.totalDiscount) / totals.year2024.totalDiscount) * 100 : 0,
-              revenue: totals.year2024.totalRevenue > 0 ? ((totals.year2025.totalRevenue - totals.year2024.totalRevenue) / totals.year2024.totalRevenue) * 100 : 0,
-              atv: totals.year2024.totalRevenue > 0 && totals.year2024.transactions > 0 && totals.year2025.totalRevenue > 0 && totals.year2025.transactions > 0 ? 
-                (((totals.year2025.totalRevenue / totals.year2025.transactions) - (totals.year2024.totalRevenue / totals.year2024.transactions)) / (totals.year2024.totalRevenue / totals.year2024.transactions)) * 100 : 0
-            }
-          }}
+          footerData={footerData}
           maxHeight="500px"
           stickyHeader={true}
         />
@@ -229,25 +242,25 @@ export const DiscountYearOnYearTable: React.FC<DiscountYearOnYearTableProps> = (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div>
               <span className="text-slate-600">2024 Total Discount:</span>
-              <div className="font-semibold text-red-600">{formatCurrency(totals.year2024.totalDiscount)}</div>
+              <div className="font-semibold text-red-600">{formatCurrency(totals.discount2024)}</div>
             </div>
             <div>
               <span className="text-slate-600">2025 Total Discount:</span>
-              <div className="font-semibold text-red-600">{formatCurrency(totals.year2025.totalDiscount)}</div>
+              <div className="font-semibold text-red-600">{formatCurrency(totals.discount2025)}</div>
             </div>
             <div>
               <span className="text-slate-600">Discount Change:</span>
-              <div className={`font-semibold ${totals.year2024.totalDiscount > 0 ? 
-                ((totals.year2025.totalDiscount - totals.year2024.totalDiscount) / totals.year2024.totalDiscount) * 100 > 0 ? 'text-red-600' : 'text-green-600'
+              <div className={`font-semibold ${totals.discount2024 > 0 ? 
+                ((totals.discount2025 - totals.discount2024) / totals.discount2024) * 100 > 0 ? 'text-red-600' : 'text-green-600'
                 : 'text-slate-600'}`}>
-                {totals.year2024.totalDiscount > 0 ? 
-                  `${((totals.year2025.totalDiscount - totals.year2024.totalDiscount) / totals.year2024.totalDiscount) * 100 > 0 ? '+' : ''}${(((totals.year2025.totalDiscount - totals.year2024.totalDiscount) / totals.year2024.totalDiscount) * 100).toFixed(1)}%`
+                {totals.discount2024 > 0 ? 
+                  `${((totals.discount2025 - totals.discount2024) / totals.discount2024) * 100 > 0 ? '+' : ''}${(((totals.discount2025 - totals.discount2024) / totals.discount2024) * 100).toFixed(1)}%`
                   : 'N/A'}
               </div>
             </div>
             <div>
               <span className="text-slate-600">Revenue Impact:</span>
-              <div className="font-semibold">{formatCurrency(totals.year2025.totalRevenue - totals.year2024.totalRevenue)}</div>
+              <div className="font-semibold">{formatCurrency(totals.revenue2025 - totals.revenue2024)}</div>
             </div>
           </div>
         </div>
